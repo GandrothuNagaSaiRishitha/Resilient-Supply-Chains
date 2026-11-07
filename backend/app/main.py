@@ -98,3 +98,8 @@ def root() -> dict:
         "memory_engine": "Hindsight (self-hosted)",
         "demo_data": "synthetic and labeled",
     }
+
+
+# Paths below intentionally match the frontend contract (outside /api/v1).
+app.include_router(crises_api.router, prefix="/api")
+app.include_router(impacts_api.router, prefix="/api")
