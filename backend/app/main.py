@@ -16,6 +16,7 @@ from .api import crises as crises_api
 from .api import impacts as impacts_api
 from .api import lab as lab_api
 from .api import memory as memory_api
+from .api import memories as memories_api
 from .api import orders as orders_api
 from .api import settings as settings_api
 from .api import simulations as simulations_api
@@ -81,6 +82,7 @@ for router in (
     suppliers_api.router,
     orders_api.router,
     memory_api.router,
+    memories_api.router,
     agent_api.router,
     lab_api.router,
     alerts_api.router,
@@ -88,6 +90,7 @@ for router in (
     settings_api.router,
 ):
     app.include_router(router, prefix=settings.api_prefix)
+    app.include_router(memories_api.router, prefix="/api")
 
 
 @app.get("/")
