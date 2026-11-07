@@ -76,8 +76,6 @@ app.add_middleware(
 for router in (
     auth_api.router,
     dashboard_api.router,
-    crises_api.router,
-    impacts_api.router,
     suppliers_api.router,
     orders_api.router,
     memory_api.router,
