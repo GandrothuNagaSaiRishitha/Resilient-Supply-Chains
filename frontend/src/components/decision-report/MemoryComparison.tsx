@@ -11,7 +11,7 @@ export default function MemoryComparison({ report }: { report: DecisionReport })
   )
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40">
-      <SectionHeader icon={<GitCompareArrows size={18} />} title="Memory-free vs memory-informed comparison" description={isMockMode ? 'A fixed illustrative comparison only—not actual AI reasoning or Hindsight retrieval.' : 'Comparison supplied by the backend; confirm the evidence source and method with the backend contract.'} tag={isMockMode ? 'Illustrative comparison' : 'Backend comparison'} />
+      <SectionHeader icon={<GitCompareArrows size={18} />} title="Memory-free vs memory-informed comparison" description={isMockMode ? 'A fixed illustrative comparison only—not actual AI reasoning or Hindsight retrieval.' : 'The backend compares the incident baseline with organization-scoped Hindsight evidence.'} tag={isMockMode ? 'Illustrative comparison' : 'Backend comparison'} />
       <div className="grid gap-4 p-5 lg:grid-cols-[1fr_auto_1fr] lg:items-stretch sm:p-6">
         <ComparisonColumn
           title={isMockMode ? 'Without historical examples' : 'Memory-free'}

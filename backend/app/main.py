@@ -16,6 +16,10 @@ from .api import crises as crises_api
 from .api import impacts as impacts_api
 from .api import lab as lab_api
 from .api import memory as memory_api
+from .api import memories as memories_api
+from .api import recovery_simulations as recovery_simulations_api
+from .api import decisions as decisions_api
+from .api import decision_replays as decision_replays_api
 from .api import orders as orders_api
 from .api import settings as settings_api
 from .api import simulations as simulations_api
@@ -76,8 +80,6 @@ app.add_middleware(
 for router in (
     auth_api.router,
     dashboard_api.router,
-    crises_api.router,
-    impacts_api.router,
     suppliers_api.router,
     orders_api.router,
     memory_api.router,
@@ -88,6 +90,16 @@ for router in (
     settings_api.router,
 ):
     app.include_router(router, prefix=settings.api_prefix)
+
+for router in (
+    crises_api.router,
+    impacts_api.router,
+    memories_api.router,
+    recovery_simulations_api.router,
+    decisions_api.router,
+    decision_replays_api.router,
+):
+    app.include_router(router, prefix="/api")
 
 
 @app.get("/")

@@ -1,31 +1,29 @@
-# Secrets and environment variables
+# Environment
 .env
+.env.*
+!.env.example
+
+# Secrets
 .secrets/
-**/.env
-**/.secrets/
-*.pem
-*.key
 
-# Python virtual environments
+# Python
 .venv/
-venv/
 __pycache__/
-*.py[cod]
-
-# Node dependencies
-node_modules/
-
-# Build files
-dist/
-build/
-
-# IDE
-.vscode/
+*.pyc
+*.pyo
 
 # PostgreSQL runtime data
 infra/pgdata/
-**/pgdata/
-*.log
 
-# Runtime files
+# Logs and runtime
+*.log
+postmaster.pid
 *.pid
+
+# Node
+node_modules/
+frontend/.next/
+
+# Misc
+.DS_Store
+Thumbs.db

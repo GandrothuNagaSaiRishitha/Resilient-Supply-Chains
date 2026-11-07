@@ -39,22 +39,22 @@ function LoadingState() {
   )
 }
 
-function EmptyState() {
+function EmptyState({ demo }: { demo: boolean }) {
   return (
     <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
       <PackageOpen className="mb-3 text-slate-400" size={30} />
-      <h2 className="font-semibold text-slate-900">No demo incidents available</h2>
-      <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">There are no illustrative incident records to analyze right now.</p>
+      <h2 className="font-semibold text-slate-900">{demo ? 'No demo incidents available' : 'No incidents available'}</h2>
+      <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">{demo ? 'There are no illustrative incident records to analyze right now.' : 'Report a crisis to create an incident for impact analysis.'}</p>
     </div>
   )
 }
 
-function ErrorState({ onRetry }: { onRetry: () => void }) {
+function ErrorState({ onRetry, demo }: { onRetry: () => void; demo: boolean }) {
   return (
     <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-rose-200 bg-white p-8 text-center">
       <AlertCircle className="mb-3 text-rose-500" size={28} />
       <h2 className="font-semibold text-slate-900">Impact analysis unavailable</h2>
-      <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">The illustrative impact data could not be loaded. Please try again.</p>
+      <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">{demo ? 'The illustrative impact data could not be loaded. Please try again.' : 'The impact data could not be loaded from the backend. Please try again.'}</p>
       <button type="button" onClick={onRetry} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">
         <RefreshCw size={15} />Try again
       </button>
@@ -145,7 +145,7 @@ export default function ImpactAnalysisPage() {
           <span className="flex size-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><ChartNoAxesCombined size={18} /></span>
           <div>
             <label htmlFor="impact-incident" className="block text-xs font-semibold text-slate-800">Analyze incident</label>
-            <p className="mt-0.5 text-[10px] text-slate-400">Select an illustrative incident</p>
+            <p className="mt-0.5 text-[10px] text-slate-400">{isMockMode ? 'Select an illustrative incident' : 'Select an organization incident'}</p>
           </div>
         </div>
         <div className="relative min-w-0 flex-1 sm:max-w-xl sm:pl-3">
@@ -161,7 +161,7 @@ export default function ImpactAnalysisPage() {
             disabled={loadingIncidents || incidents.length === 0}
             className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-3 pr-9 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 disabled:opacity-60"
           >
-            {incidents.length === 0 && <option value="">No demo incidents available</option>}
+            {incidents.length === 0 && <option value="">{isMockMode ? 'No demo incidents available' : 'No incidents available'}</option>}
             {incidents.map((incident) => <option key={incident.id} value={incident.id}>{incident.id} · {incident.crisisType} — {incident.title}</option>)}
           </select>
           <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -173,7 +173,7 @@ export default function ImpactAnalysisPage() {
           </div>
         )}
       </div>
-      {loadingIncidents || loadingAnalysis ? <LoadingState /> : error ? <ErrorState onRetry={retry} /> : !analysis ? <EmptyState /> : <ImpactContent analysis={analysis} />}
+      {loadingIncidents || loadingAnalysis ? <LoadingState /> : error ? <ErrorState onRetry={retry} demo={isMockMode} /> : !analysis ? <EmptyState demo={isMockMode} /> : <ImpactContent analysis={analysis} />}
     </section>
   )
 }

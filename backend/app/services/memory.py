@@ -323,6 +323,12 @@ def recall(
                         "order_id": str(rec.order_id) if rec.order_id else None,
                         "event_date": rec.event_date.isoformat() if rec.event_date else None,
                         "record_id": str(rec.id),
+                        "crisis_type": rec.metadata_json.get("crisis_type"),
+                        "strategy_key": rec.metadata_json.get("strategy_key"),
+                        "successful": rec.metadata_json.get("successful"),
+                        "lessons_learned": rec.metadata_json.get("lessons_learned"),
+                        "incident_title": rec.metadata_json.get("incident_title"),
+                        "expected_result": rec.metadata_json.get("expected_result"),
                     }
 
         log = _log(
@@ -540,6 +546,7 @@ def records(db: Session, organization: Organization, limit: int = 200) -> list[d
             "order_id": str(r.order_id) if r.order_id else None,
             "event_date": r.event_date.isoformat() if r.event_date else None,
             "document_id": r.hindsight_document_id,
+            "metadata": r.metadata_json or {},
             "synthetic": r.synthetic,
             "created_at": r.created_at.isoformat() if r.created_at else None,
         }

@@ -8,7 +8,7 @@ export default function MemoryEvidence({ evidence }: { evidence: ReplayHistorica
     <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40">
       <SectionHeading icon={<History size={17} />} title="Historical evidence considered" subtitle={isMockMode ? 'Synthetic demo records shown for illustration; no Hindsight retrieval occurred.' : 'Historical evidence included in the backend API response. The frontend does not call Hindsight directly.'} />
       {evidence.length === 0 ? (
-        <p className="p-6 text-sm text-slate-500">No illustrative evidence is associated with this incident.</p>
+        <p className="p-6 text-sm text-slate-500">{isMockMode ? 'No illustrative evidence is associated with this incident.' : 'No Hindsight evidence was returned for this incident.'}</p>
       ) : (
         <div className="grid gap-3 p-5 md:grid-cols-2 sm:p-6">
           {evidence.map((item) => (

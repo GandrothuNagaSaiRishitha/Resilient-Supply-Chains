@@ -67,7 +67,7 @@ export default function ReportCrisisPage() {
               <RotateCcw size={15} />Reset
             </button>
             <button type="submit" disabled={form.submitting || !form.options || form.options.suppliers.length === 0} className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
-              <Send size={15} />{form.submitting ? 'Preparing demo report...' : 'Submit Crisis'}
+              <Send size={15} />{form.submitting ? (isMockMode ? 'Preparing demo report...' : 'Submitting report...') : 'Submit Crisis'}
             </button>
           </div>
         </form>
@@ -86,8 +86,8 @@ export default function ReportCrisisPage() {
             <li className="flex gap-2"><StepNumber number="3" />Coordinate response actions with your team.</li>
           </ul>
           <div className="mt-5 rounded-xl border border-blue-100 bg-white/80 p-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-700">Demo environment</p>
-            <p className="mt-1 text-[11px] leading-5 text-slate-500">Submission generates a demo reference only. No backend incident is created or sent.</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-700">{isMockMode ? 'Demo environment' : 'Connected workflow'}</p>
+            <p className="mt-1 text-[11px] leading-5 text-slate-500">{isMockMode ? 'Submission generates a demo reference only. No backend incident is created or sent.' : 'Submitting creates an organization-scoped incident record that powers impact and recovery workflows.'}</p>
           </div>
         </aside>
       </div>

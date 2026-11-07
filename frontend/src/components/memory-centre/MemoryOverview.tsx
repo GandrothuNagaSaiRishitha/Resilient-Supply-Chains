@@ -24,7 +24,7 @@ export function MemoryStatusNotice() {
         <p className="mt-1 text-[11px] leading-5 text-amber-800">
           {isMockMode
             ? 'All incidents, outcomes, and insights below are synthetic examples for the interface. These are not persistent memories and have not been retrieved from Hindsight.'
-            : 'Records are supplied by the configured backend API. The frontend does not connect to Hindsight directly; confirm the backend memory source and retrieval behavior with the agreed API contract.'}
+            : 'Historical outcomes are served through the backend from organization-scoped Hindsight memory records.'}
         </p>
       </div>
     </div>
@@ -37,7 +37,7 @@ export default function MemoryOverview({ stats }: { stats: MemoryOverviewStats }
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-slate-900">Memory overview</h2>
-          <p className="mt-1 text-xs text-slate-500">{isMockMode ? 'Illustrative demo statistics only' : 'Statistics returned by the backend'}</p>
+          <p className="mt-1 text-xs text-slate-500">{isMockMode ? 'Illustrative demo statistics only' : 'Counts from retained, structured outcomes'}</p>
         </div>
         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wide text-slate-500">{isMockMode ? 'Demo stats' : 'API stats'}</span>
       </div>

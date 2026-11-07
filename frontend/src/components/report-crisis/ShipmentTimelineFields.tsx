@@ -30,7 +30,7 @@ export default function ShipmentTimelineFields({ values, setField }: Props) {
               id="shipmentId"
               name="shipmentId"
               className={reportInputClass}
-              placeholder="e.g. SHP-80421"
+              placeholder="Enter a purchase order number"
               value={values.shipmentId}
               onChange={(event) => setField('shipmentId', event.target.value)}
               required

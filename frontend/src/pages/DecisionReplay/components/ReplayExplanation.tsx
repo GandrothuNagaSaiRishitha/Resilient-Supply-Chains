@@ -19,7 +19,7 @@ export default function ReplayExplanation({ record }: { record: DecisionReplayRe
       <p className="mt-4 border-t border-blue-100 pt-3 text-[10px] leading-5 text-slate-500">
         {isMockMode
           ? 'This page presents static, authored comparisons from illustrative demo records. It does not run an AI decision engine, query Hindsight, or represent a real replay of production data.'
-          : 'This page displays the backend response. The frontend does not run its own AI decision engine or make direct Hindsight calls; confirm backend behavior and provenance with the API contract.'}
+          : 'The backend compares the incident baseline with organization-scoped Hindsight evidence. This replay is analytical and does not change the original decision.'}
       </p>
     </aside>
   )

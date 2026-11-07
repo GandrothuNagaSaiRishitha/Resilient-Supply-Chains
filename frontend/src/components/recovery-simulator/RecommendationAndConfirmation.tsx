@@ -73,7 +73,7 @@ export default function RecommendationAndConfirmation({
           <CheckCircle2 size={16} />{confirming ? (isMockMode ? 'Preparing demo confirmation...' : 'Submitting strategy choice...') : 'Confirm strategy'}
         </button>
       </section>
-      <p className="mt-4 flex items-start gap-2 text-[11px] leading-5 text-slate-400"><ArrowUp size={13} className="mt-0.5 shrink-0" />{isMockMode ? 'All scenario values and recommendations are illustrative demo simulations, not operational data or real predictions.' : 'Scenario values and recommendations are returned by the configured API; validate their operational meaning and assumptions with the backend team.'}</p>
+      <p className="mt-4 flex items-start gap-2 text-[11px] leading-5 text-slate-400"><ArrowUp size={13} className="mt-0.5 shrink-0" />{isMockMode ? 'All scenario values and recommendations are illustrative demo simulations, not operational data or real predictions.' : 'Scenario estimates use recorded incident, supplier, purchase-order, and inventory data. Transfer feasibility remains conditional where location and capacity data are unavailable.'}</p>
     </>
   )
 }
