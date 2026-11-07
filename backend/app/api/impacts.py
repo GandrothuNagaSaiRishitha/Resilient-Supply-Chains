@@ -65,7 +65,7 @@ def _analysis(row: SupplyChainIncident, db: Session, org_id: uuid.UUID) -> dict:
 @router.get("/incidents")
 def impact_incidents(ctx: CurrentContext = Depends(get_current_context), db: Session = Depends(get_db)) -> dict:
     rows = db.scalars(select(SupplyChainIncident).where(SupplyChainIncident.organization_id == ctx.organization.id).order_by(SupplyChainIncident.incident_date.desc())).all()
-    return {"data":[_incident(r) for r in rows],"count":len(rows)}
+    return {"data":[_incident(r) for r in rows]}
 
 @router.get("/incidents/{incident_id}")
 def impact_analysis(incident_id: uuid.UUID, ctx: CurrentContext = Depends(get_current_context), db: Session = Depends(get_db)) -> dict:
