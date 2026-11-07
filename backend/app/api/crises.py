@@ -27,7 +27,7 @@ def _json(row: SupplyChainIncident, supplier_name: str | None = None) -> dict:
 @router.get("/form-options")
 def crisis_form_options(ctx: CurrentContext = Depends(get_current_context), db: Session = Depends(get_db)) -> dict:
     suppliers = db.scalars(select(Supplier).where(Supplier.organization_id == ctx.organization.id, Supplier.status == "active").order_by(Supplier.name)).all()
-    return {"crisisTypes": TYPES, "suppliers": [{"id": str(s.id), "name": s.name} for s in suppliers], "urgencies": URGENCIES}
+    return {"data": {"crisisTypes": TYPES, "suppliers": [{"id": str(s.id), "name": s.name} for s in suppliers], "urgencies": URGENCIES}}
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_crisis(payload: CrisisReportCreate, request: Request, ctx: CurrentContext = Depends(get_current_context), db: Session = Depends(get_db)) -> dict:
@@ -52,7 +52,7 @@ def create_crisis(payload: CrisisReportCreate, request: Request, ctx: CurrentCon
     audit(db, ctx.organization.id, ctx.user.id, "crisis.create", "supply_chain_incident", str(row.id),
           {"incident_number": row.incident_number, "crisis_type": row.crisis_type}, request.client.host if request.client else None)
     db.commit(); db.refresh(row)
-    return {"incidentId": str(row.id), "demo": False, "message": "Crisis report recorded successfully."}
+    return {"data": {"incidentId": str(row.id), "demo": False, "message": "Crisis report recorded successfully."}}
 
 @router.get("")
 def list_crises(ctx: CurrentContext = Depends(get_current_context), db: Session = Depends(get_db)) -> dict:
