@@ -15,7 +15,7 @@ export default function RecoverySimulatorPage() {
         <div>
           <p className="mb-2 text-sm text-slate-500">Workspace / Recovery Simulator</p>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-[28px]">Recovery Strategy Simulator</h1>
-          <p className="mt-1.5 text-sm text-slate-500">Compare illustrative response options and understand their trade-offs.</p>
+          <p className="mt-1.5 text-sm text-slate-500">{isMockMode ? 'Compare illustrative response options and understand their trade-offs.' : 'Compare recovery options calculated from the selected incident and organization records.'}</p>
         </div>
         <span className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-blue-700">
           <span className="size-1.5 rounded-full bg-blue-500" />{isMockMode ? 'ILLUSTRATIVE DEMO SIMULATIONS' : 'BACKEND API SIMULATIONS'}

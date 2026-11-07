@@ -33,8 +33,8 @@ export default function MemorySearchFilters({ data, filters, onFilter, onReset }
         </FilterSelect>
         <FilterSelect id="filter-outcome" label="Outcome" value={filters.outcome} onChange={(value) => onFilter('outcome', value as MemoryOutcome | '')}>
           <option value="">All outcomes</option>
-          <option value="Successful">Successful · demo</option>
-          <option value="Ineffective">Ineffective · demo</option>
+          <option value="Successful">Successful</option>
+          <option value="Ineffective">Ineffective</option>
         </FilterSelect>
         <DateFilter id="filter-date-from" label="From date" value={filters.dateFrom} max={filters.dateTo || undefined} onChange={(value) => onFilter('dateFrom', value)} />
         <DateFilter id="filter-date-to" label="To date" value={filters.dateTo} min={filters.dateFrom || undefined} onChange={(value) => onFilter('dateTo', value)} />

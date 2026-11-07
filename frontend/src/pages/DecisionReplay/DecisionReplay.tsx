@@ -31,7 +31,7 @@ export default function DecisionReplay() {
       />
 
       {replay.loading ? (
-        <div className="space-y-5" role="status" aria-label="Loading demo replay">
+        <div className="space-y-5" role="status" aria-label="Loading decision replay">
           <div className="h-52 animate-pulse rounded-2xl bg-slate-200/70" />
           <div className="grid gap-5 lg:grid-cols-2"><div className="h-64 animate-pulse rounded-2xl bg-slate-200/70" /><div className="h-64 animate-pulse rounded-2xl bg-slate-200/70" /></div>
         </div>
@@ -39,7 +39,7 @@ export default function DecisionReplay() {
         <div role="alert" className="flex flex-col items-center rounded-2xl border border-rose-200 bg-white p-8 text-center">
           <AlertCircle size={26} className="text-rose-500" />
           <h2 className="mt-3 text-sm font-semibold text-slate-900">Decision replay unavailable</h2>
-          <p className="mt-2 text-xs text-slate-500">Illustrative demo data could not be loaded or replayed.</p>
+          <p className="mt-2 text-xs text-slate-500">{isMockMode ? 'Illustrative demo data could not be loaded or replayed.' : 'Decision replay data could not be loaded from the backend.'}</p>
           <button type="button" onClick={replay.retry} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700"><RotateCcw size={14} />Try again</button>
         </div>
       ) : replay.record ? (

@@ -251,6 +251,7 @@ class DecisionOutcome(Base, TimestampMixin):
     outcome: Mapped[str] = mapped_column(Text, nullable=False)
     success: Mapped[bool] = mapped_column(Boolean, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    details: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
     synthetic: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
@@ -527,4 +528,24 @@ class SupplyChainIncident(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(20), default="open", nullable=False)
     resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     reported_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    synthetic: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class RecoveryConfirmation(Base, TimestampMixin):
+    """User-confirmed recovery strategy for an incident."""
+    __tablename__ = "recovery_confirmations"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    incident_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("supply_chain_incidents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    strategy_key: Mapped[str] = mapped_column(String(40), nullable=False)
+    strategy_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    confirmed_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    confirmation_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     synthetic: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

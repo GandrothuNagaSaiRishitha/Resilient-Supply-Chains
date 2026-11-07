@@ -57,7 +57,7 @@ def form_options(ctx: CurrentContext = Depends(get_current_context), db: Session
     return {
         "data": {
             "crisisTypes": ["Shipment Disruption", "Supplier Failure", "Inventory Shortage"],
-            "urgencyLevels": ["Low", "Medium", "High", "Critical"],
+            "urgencies": ["Low", "Medium", "High", "Critical"],
             "suppliers": [{"id": str(s.id), "name": s.name} for s in suppliers],
         }
     }
@@ -73,18 +73,33 @@ def create_crisis(
     supplier = None
     if payload.supplier_id:
         try:
-            supplier = db.get(Supplier, uuid.UUID(payload.supplier_id))
+            supplier_id = uuid.UUID(payload.supplier_id)
         except ValueError:
-            supplier = None
+            raise HTTPException(status_code=422, detail="Invalid supplier id")
+        supplier = db.get(Supplier, supplier_id)
         if supplier is None or supplier.organization_id != org_id:
             raise HTTPException(status_code=422, detail="Supplier not found in this organization")
     order = None
     if payload.shipment_id:
         try:
-            order = db.get(PurchaseOrder, uuid.UUID(payload.shipment_id))
+            shipment_id = uuid.UUID(payload.shipment_id)
         except ValueError:
-            order = None
-        if order is None or order.organization_id != org_id:
+            shipment_id = None
+        if shipment_id:
+            order = db.get(PurchaseOrder, shipment_id)
+        else:
+            order = db.scalar(
+                select(PurchaseOrder).where(
+                    PurchaseOrder.organization_id == org_id,
+                    PurchaseOrder.order_number == payload.shipment_id.strip(),
+                    PurchaseOrder.supplier_id == supplier.id,
+                )
+            )
+        if (
+            order is None
+            or order.organization_id != org_id
+            or order.supplier_id != supplier.id
+        ):
             raise HTTPException(status_code=422, detail="Linked shipment/order not found in this organization")
 
     incident_number = _next_incident_number(db, org_id)
@@ -125,4 +140,4 @@ def create_crisis(
     )
     db.commit()
     db.refresh(incident)
-    return {"data": {"incidentId": str(incident.id), "message": "Crisis report recorded successfully."}}
+    return {"data": {"incidentId": str(incident.id), "demo": False, "message": "Crisis report recorded successfully."}}

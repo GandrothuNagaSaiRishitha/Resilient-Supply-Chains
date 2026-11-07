@@ -34,7 +34,7 @@ export default function DecisionReportPage() {
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-600">Decision intelligence</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Decision Report</h1>
-          <p className="mt-1 text-xs text-slate-500">Review recovery options, supporting demo evidence, and decision trade-offs.</p>
+          <p className="mt-1 text-xs text-slate-500">{isMockMode ? 'Review illustrative recovery options, demo evidence, and decision trade-offs.' : 'Review incident recovery options, Hindsight evidence, and decision trade-offs.'}</p>
         </div>
         <span className="w-fit rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-700">{isMockMode ? 'Illustrative demo data' : 'Backend API data'}</span>
       </header>

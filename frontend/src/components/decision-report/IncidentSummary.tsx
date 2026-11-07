@@ -30,7 +30,7 @@ export function IncidentSelector({
         <span className="flex size-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><AlertCircle size={18} /></span>
         <div>
           <label htmlFor="decision-incident" className="block text-xs font-semibold text-slate-800">Decision for incident</label>
-          <p className="mt-0.5 text-[10px] text-slate-400">Select an illustrative incident</p>
+          <p className="mt-0.5 text-[10px] text-slate-400">{isMockMode ? 'Select an illustrative incident' : 'Select an organization incident'}</p>
         </div>
       </div>
       <div className="relative min-w-0 flex-1 sm:max-w-2xl sm:pl-3">
@@ -65,7 +65,7 @@ export default function IncidentSummary({ report }: { report: DecisionReport }) 
           <p className="mt-2 text-sm leading-6 text-slate-600">{report.incidentContext.description}</p>
         </div>
         <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Current impact · illustrative</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{isMockMode ? 'Current impact · illustrative' : 'Current impact'}</p>
           <p className="mt-2 text-sm font-semibold leading-6 text-slate-800">{report.incidentContext.currentImpact}</p>
           <p className="mt-2 text-[10px] text-slate-400">Reported {report.scenario.incident.reportedAt}</p>
         </div>

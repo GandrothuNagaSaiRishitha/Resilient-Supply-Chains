@@ -45,10 +45,10 @@ export default function MemoryCentrePage() {
         <div>
           <p className="mb-2 text-sm text-slate-500">Workspace / Memory Centre</p>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-[28px]">Memory Centre</h1>
-          <p className="mt-1.5 text-sm text-slate-500">Explore illustrative incident experiences and lessons for supply chain response.</p>
+          <p className="mt-1.5 text-sm text-slate-500">Explore retained incident outcomes and lessons for supply chain response.</p>
         </div>
         <span className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-amber-800">
-          <span className="size-1.5 rounded-full bg-amber-500" />{isMockMode ? 'DEMO RECORDS · NO HINDSIGHT CONNECTION' : 'BACKEND MEMORY API'}
+        <span className="size-1.5 rounded-full bg-amber-500" />{isMockMode ? 'DEMO RECORDS · NO HINDSIGHT CONNECTION' : 'HINDSIGHT-BACKED MEMORY API'}
         </span>
       </div>
 
@@ -85,7 +85,7 @@ export default function MemoryCentrePage() {
       <div className="mb-5 flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4">
         <CalendarDays size={17} className="mt-0.5 shrink-0 text-slate-400" />
         <p className="text-[11px] leading-5 text-slate-500">
-          {isMockMode ? 'Date filters apply to the incident dates in the illustrative demo records. They do not query an external or persistent memory store.' : 'Date filters are sent to the configured backend memory endpoint. The actual retrieval source and persistence behavior must be confirmed with the backend contract.'}
+          {isMockMode ? 'Date filters apply to the incident dates in the illustrative demo records. They do not query an external or persistent memory store.' : 'Date filters are applied to organization-scoped Hindsight results returned by the backend.'}
         </p>
       </div>
       <MemoryDetailDialog

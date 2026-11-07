@@ -1,5 +1,6 @@
 import { ChevronDown, History } from 'lucide-react'
 import type { SimulationIncident } from '../../../types/simulation'
+import { isMockMode } from '../../../services/apiConfig'
 
 export default function IncidentSelector({
   incidents,
@@ -18,17 +19,17 @@ export default function IncidentSelector({
         <span className="flex size-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><History size={18} /></span>
         <div>
           <label htmlFor="replay-incident" className="block text-xs font-semibold text-slate-800">Previous crisis incident</label>
-          <p className="mt-0.5 text-[10px] text-slate-400">Choose an illustrative demo record</p>
+          <p className="mt-0.5 text-[10px] text-slate-400">{isMockMode ? 'Choose an illustrative demo record' : 'Choose an organization incident'}</p>
         </div>
       </div>
       <div className="relative min-w-0 flex-1 sm:max-w-2xl sm:pl-3">
         <select id="replay-incident" value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled || incidents.length === 0} className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-3 pr-9 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 disabled:opacity-60">
-          {incidents.length === 0 && <option value="">No demo incidents available</option>}
+          {incidents.length === 0 && <option value="">{isMockMode ? 'No demo incidents available' : 'No incidents available'}</option>}
           {incidents.map((incident) => <option key={incident.id} value={incident.id}>{incident.id} · {incident.crisisType} — {incident.title}</option>)}
         </select>
         <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
       </div>
-      <span className="w-fit rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-blue-700">Demo incident history</span>
+      <span className="w-fit rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-blue-700">{isMockMode ? 'Demo incident history' : 'Organization incident history'}</span>
     </section>
   )
 }

@@ -25,7 +25,16 @@ def _analysis(row: SupplyChainIncident, db: Session, org_id: uuid.UUID) -> dict:
     if row.order_id: q = q.where(PurchaseOrder.id == row.order_id)
     elif row.supplier_id: q = q.where(PurchaseOrder.supplier_id == row.supplier_id)
     orders = db.scalars(q.order_by(PurchaseOrder.promised_date).limit(200)).all()
-    supplier = db.get(Supplier, row.supplier_id) if row.supplier_id else None
+    supplier = (
+        db.scalar(
+            select(Supplier).where(
+                Supplier.id == row.supplier_id,
+                Supplier.organization_id == org_id,
+            )
+        )
+        if row.supplier_id
+        else None
+    )
     iq = select(InventoryItem).where(InventoryItem.organization_id == org_id)
     if row.supplier_id: iq = iq.where(InventoryItem.supplier_id == row.supplier_id)
     if row.product_component:
@@ -65,7 +74,7 @@ def _analysis(row: SupplyChainIncident, db: Session, org_id: uuid.UUID) -> dict:
 @router.get("/incidents")
 def impact_incidents(ctx: CurrentContext = Depends(get_current_context), db: Session = Depends(get_db)) -> dict:
     rows = db.scalars(select(SupplyChainIncident).where(SupplyChainIncident.organization_id == ctx.organization.id).order_by(SupplyChainIncident.incident_date.desc())).all()
-    return {"data":[_incident(r) for r in rows],"count":len(rows)}
+    return {"data":[_incident(r) for r in rows]}
 
 @router.get("/incidents/{incident_id}")
 def impact_analysis(incident_id: uuid.UUID, ctx: CurrentContext = Depends(get_current_context), db: Session = Depends(get_db)) -> dict:
