@@ -1,0 +1,117 @@
+﻿{
+  "seeded": true,
+  "organization_id": "f135fdd1-e889-47e2-b759-b5bea2186610",
+  "suppliers": 5,
+  "orders": 25,
+  "delivered_orders": 20,
+  "complaints": 10,
+  "synthetic": true,
+  "memory": {
+    "retained": 20,
+    "errors": 0,
+    "total": 20,
+    "details": [
+      {
+        "index": 0,
+        "document_id": "12666bff-beff-4f9e-b8e4-88c7e02bb78b",
+        "category": "episodic"
+      },
+      {
+        "index": 1,
+        "document_id": "cd961930-cdd5-4d05-9c07-448a410c4810",
+        "category": "episodic"
+      },
+      {
+        "index": 2,
+        "document_id": "7dc0b8aa-21be-49ef-a76f-b79057291998",
+        "category": "episodic"
+      },
+      {
+        "index": 3,
+        "document_id": "b4d6d462-66b6-450c-85f7-c755ce91c14d",
+        "category": "episodic"
+      },
+      {
+        "index": 4,
+        "document_id": "be7f22ce-161d-4d27-b0d7-8f92bf73b58e",
+        "category": "semantic"
+      },
+      {
+        "index": 5,
+        "document_id": "eaacf706-1026-42e0-9bc7-dd9ae7705b62",
+        "category": "outcome"
+      },
+      {
+        "index": 6,
+        "document_id": "cf63f262-773f-4dfe-8ce4-7fc82b87e521",
+        "category": "episodic"
+      },
+      {
+        "index": 7,
+        "document_id": "b17e30b7-1dec-4601-b0ae-b73c3d9b798f",
+        "category": "episodic"
+      },
+      {
+        "index": 8,
+        "document_id": "8c655cd4-fa77-4df6-be20-eb96b959a6ed",
+        "category": "episodic"
+      },
+      {
+        "index": 9,
+        "document_id": "f3914a66-9a9d-468a-aac1-36e4635e9282",
+        "category": "outcome"
+      },
+      {
+        "index": 10,
+        "document_id": "fbb1b0ca-4fb4-4266-9912-995ff462b96c",
+        "category": "episodic"
+      },
+      {
+        "index": 11,
+        "document_id": "34b5ca4d-055d-408d-ad64-02b4d3dea62e",
+        "category": "semantic"
+      },
+      {
+        "index": 12,
+        "document_id": "8e988dc3-f04c-460d-abc4-36b5181edeac",
+        "category": "episodic"
+      },
+      {
+        "index": 13,
+        "document_id": "d0f04647-a727-461a-b5cd-3fdeb4696dd8",
+        "category": "episodic"
+      },
+      {
+        "index": 14,
+        "document_id": "956b9029-58b5-49c7-983e-5e8e4a6a93d0",
+        "category": "episodic"
+      },
+      {
+        "index": 15,
+        "document_id": "7fee30f5-8e43-4f0b-8c4b-216bb5303eb7",
+        "category": "outcome"
+      },
+      {
+        "index": 16,
+        "document_id": "657682c6-c8c7-4f7f-81c9-bc85db9ebc62",
+        "category": "episodic"
+      },
+      {
+        "index": 17,
+        "document_id": "53f1d1e1-e6d4-4399-bea2-7e6302a88ce7",
+        "category": "episodic"
+      },
+      {
+        "index": 18,
+        "document_id": "0ddca1e0-f02e-4e2d-a1ad-e21103daf4ae",
+        "category": "decision"
+      },
+      {
+        "index": 19,
+        "document_id": "9a976e46-7368-4a9a-93cb-cfa03c5801f1",
+        "category": "preference"
+      }
+    ]
+  },
+  "demo_user": "demo@supplymind.local"
+}

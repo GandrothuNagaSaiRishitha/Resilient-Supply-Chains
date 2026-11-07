@@ -1,0 +1,1 @@
+"""SUPPLYMIND backend package."""
