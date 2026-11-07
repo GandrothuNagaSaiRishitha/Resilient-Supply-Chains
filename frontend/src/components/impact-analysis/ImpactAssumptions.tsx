@@ -16,7 +16,7 @@ export default function ImpactAssumptions({
           <p className="mt-1 text-xs leading-5 text-slate-600">
             {isMockMode
               ? 'Illustrative demo analysis only. These values are not calculated from live operations or a backend service.'
-              : 'These estimates are supplied by the backend response. Confirm calculation assumptions and source systems with the backend contract.'}
+              : 'These estimates are calculated from organization-scoped incident, purchase-order, supplier, and inventory records.'}
           </p>
         </div>
       </div>

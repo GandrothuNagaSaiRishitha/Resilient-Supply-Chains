@@ -85,10 +85,10 @@ export default function ReportCrisisPage() {
             <li className="flex gap-2"><StepNumber number="2" />Share relevant supplier, shipment, and impact information.</li>
             <li className="flex gap-2"><StepNumber number="3" />Coordinate response actions with your team.</li>
           </ul>
-          {isMockMode && <div className="mt-5 rounded-xl border border-blue-100 bg-white/80 p-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-700">Demo environment</p>
-            <p className="mt-1 text-[11px] leading-5 text-slate-500">Submission generates a demo reference only. No backend incident is created or sent.</p>
-          </div>}
+          <div className="mt-5 rounded-xl border border-blue-100 bg-white/80 p-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-700">{isMockMode ? 'Demo environment' : 'Connected workflow'}</p>
+            <p className="mt-1 text-[11px] leading-5 text-slate-500">{isMockMode ? 'Submission generates a demo reference only. No backend incident is created or sent.' : 'Submitting creates an organization-scoped incident record that powers impact and recovery workflows.'}</p>
+          </div>
         </aside>
       </div>
     </section>

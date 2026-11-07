@@ -1,0 +1,10 @@
+# INTEGRATION_PROGRESS.md
+
+Milestone: Crisis Reporting + Impact Analysis — COMPLETE (verified live).
+- Added POST /api/v1/crises (create incident), GET /api/v1/crises/form-options (types/urgencies/suppliers).
+- GET /api/v1/impacts/incidents and GET /api/v1/impacts/incidents/{id} already existed and return contract-shaped data.
+- Applied migration b7a4c91d2e60 (supply_chain_incidents table).
+- Verified live: demo-login 200; form-options 200; crisis create 200 returned incidentId; impacts list 200 returned 1 incident; impacts detail 200 returned contract shape (incident, kpis, affectedProducts, warehouseImpacts, customerOrders, distribution, severityIndicators, assumptions).
+- No backend test suite exists (tests/ absent); verified via live authenticated HTTP calls.
+- Commit f685bcd on feature/full-stack-integration.
+Next: Recovery Simulations (/api/recovery-simulations/*) and Decision Management (/api/decisions/*) endpoints + frontend wiring.

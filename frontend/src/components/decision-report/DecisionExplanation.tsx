@@ -8,12 +8,12 @@ export default function DecisionExplanation({ notice }: { notice?: string }) {
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm"><Info size={17} /></span>
         <div>
           <h2 className="text-xs font-semibold text-slate-800">{isMockMode ? 'How this demo recommendation is assembled' : 'Recommendation data source'}</h2>
-          <p className="mt-1 text-xs leading-5 text-slate-600">{notice ?? (isMockMode ? 'Current recommendation and historical examples are illustrative demo data.' : 'Recommendation and evidence details are returned by the configured backend API. Confirm calculation and memory provenance with the backend contract.')}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-600">{notice ?? (isMockMode ? 'Current recommendation and historical examples are illustrative demo data.' : 'Scenario recommendations are calculated from organization records, and historical evidence is recalled from the organization Hindsight bank.')}</p>
         </div>
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <ExplanationStep number="01" title={isMockMode ? 'Scenario estimates' : 'Recommendation service'} text={isMockMode ? 'Strategy costs, delays, shortage estimates, and feasibility come from fixed illustrative simulation records.' : 'Recommendation and scenario results are returned by the configured API. Verify endpoint and estimate semantics with the backend team.'} />
-        <ExplanationStep number="02" title={isMockMode ? 'Synthetic examples' : 'Historical evidence'} text={isMockMode ? 'Example incidents and lessons are static demo content; no Hindsight retrieval or live AI analysis occurs.' : 'Evidence is provided by the backend response. This frontend does not connect to Hindsight directly.'} />
+        <ExplanationStep number="01" title={isMockMode ? 'Scenario estimates' : 'Scenario estimates'} text={isMockMode ? 'Strategy costs, delays, shortage estimates, and feasibility come from fixed illustrative simulation records.' : 'Costs, delays, stock levels, and supplier feasibility are calculated from the incident and available organization records.'} />
+        <ExplanationStep number="02" title={isMockMode ? 'Synthetic examples' : 'Historical evidence'} text={isMockMode ? 'Example incidents and lessons are static demo content; no Hindsight retrieval or live AI analysis occurs.' : 'Relevant retained experiences are retrieved from the organization-scoped Hindsight memory bank.'} />
         <ExplanationStep number="03" title="Decision & outcome" text={isMockMode ? 'Actions and outcome feedback display demo confirmations and are not persisted to a backend.' : 'Actions and outcome feedback are submitted to the configured backend API.'} />
       </div>
     </aside>

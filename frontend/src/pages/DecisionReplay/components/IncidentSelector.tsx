@@ -19,7 +19,7 @@ export default function IncidentSelector({
         <span className="flex size-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><History size={18} /></span>
         <div>
           <label htmlFor="replay-incident" className="block text-xs font-semibold text-slate-800">Previous crisis incident</label>
-          <p className="mt-0.5 text-[10px] text-slate-400">{isMockMode ? 'Choose an illustrative demo record' : 'Choose an incident record'}</p>
+          <p className="mt-0.5 text-[10px] text-slate-400">{isMockMode ? 'Choose an illustrative demo record' : 'Choose an organization incident'}</p>
         </div>
       </div>
       <div className="relative min-w-0 flex-1 sm:max-w-2xl sm:pl-3">
@@ -29,7 +29,7 @@ export default function IncidentSelector({
         </select>
         <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
       </div>
-      <span className="w-fit rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-blue-700">{isMockMode ? 'Demo incident history' : 'Incident history'}</span>
+      <span className="w-fit rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-blue-700">{isMockMode ? 'Demo incident history' : 'Organization incident history'}</span>
     </section>
   )
 }
