@@ -10,7 +10,7 @@ export default function OriginalDecision({ record }: { record: DecisionReplayRec
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40">
-      <SectionHeading title="Original incident & outcome" subtitle="Incident context and the recorded demo decision outcome." icon={<FileText size={17} />} />
+      <SectionHeading title="Original incident & outcome" subtitle={isMockMode ? 'Incident context and the recorded demo decision outcome.' : 'Incident context and the recorded decision outcome.'} icon={<FileText size={17} />} />
       <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.9fr)]">
         <div>
           <div className="mb-3 flex flex-wrap gap-2">
@@ -20,7 +20,7 @@ export default function OriginalDecision({ record }: { record: DecisionReplayRec
           <h3 className="text-sm font-semibold text-slate-900">{record.incident.title}</h3>
           <p className="mt-2 text-xs leading-5 text-slate-600">{record.scenario.summary}</p>
           <div className="mt-4">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Business constraints · demo</p>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">{isMockMode ? 'Business constraints · demo' : 'Business constraints'}</p>
             <div className="grid gap-2 sm:grid-cols-3">
               {record.scenario.constraints.map((constraint) => (
                 <div key={constraint.id} className="rounded-lg border border-slate-100 bg-slate-50/70 p-3">

@@ -34,12 +34,12 @@ export default function ReportCrisisPage() {
       )}
       {form.submitError && (
         <div className="mb-5 flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
-          <AlertCircle size={17} />The report could not be submitted. Please try again.
+          <AlertCircle size={17} />{form.submitError}
         </div>
       )}
       {form.optionsError && (
         <div className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
-          <span className="inline-flex items-center gap-2"><AlertCircle size={17} />Crisis form options could not be loaded.</span>
+          <span className="inline-flex items-center gap-2"><AlertCircle size={17} />{form.optionsError}</span>
           <button type="button" onClick={form.retryOptions} className="shrink-0 font-semibold underline underline-offset-2">Retry</button>
         </div>
       )}
@@ -67,7 +67,7 @@ export default function ReportCrisisPage() {
               <RotateCcw size={15} />Reset
             </button>
             <button type="submit" disabled={form.submitting || !form.options || form.options.suppliers.length === 0} className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
-              <Send size={15} />{form.submitting ? 'Preparing demo report...' : 'Submit Crisis'}
+              <Send size={15} />{form.submitting ? (isMockMode ? 'Preparing demo report...' : 'Submitting report...') : 'Submit Crisis'}
             </button>
           </div>
         </form>
@@ -85,10 +85,10 @@ export default function ReportCrisisPage() {
             <li className="flex gap-2"><StepNumber number="2" />Share relevant supplier, shipment, and impact information.</li>
             <li className="flex gap-2"><StepNumber number="3" />Coordinate response actions with your team.</li>
           </ul>
-          <div className="mt-5 rounded-xl border border-blue-100 bg-white/80 p-3">
+          {isMockMode && <div className="mt-5 rounded-xl border border-blue-100 bg-white/80 p-3">
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-700">Demo environment</p>
             <p className="mt-1 text-[11px] leading-5 text-slate-500">Submission generates a demo reference only. No backend incident is created or sent.</p>
-          </div>
+          </div>}
         </aside>
       </div>
     </section>

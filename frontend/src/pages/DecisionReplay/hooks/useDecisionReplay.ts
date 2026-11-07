@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   getDecisionReplay,
   getDecisionReplayIncidents,
@@ -16,6 +16,7 @@ export function useDecisionReplay() {
   const [error, setError] = useState(false)
   const [replayMessage, setReplayMessage] = useState('')
   const [retryToken, setRetryToken] = useState(0)
+  const selectedIncidentId = useRef('')
 
   useEffect(() => {
     let active = true
@@ -23,7 +24,10 @@ export function useDecisionReplay() {
       .then(({ data }) => {
         if (active) {
           setIncidents(data)
-          setIncidentId((current) => current || data[0]?.id || '')
+          if (!selectedIncidentId.current && data[0]) {
+            selectedIncidentId.current = data[0].id
+            setIncidentId(data[0].id)
+          }
           if (data.length === 0) setLoading(false)
         }
       })
@@ -56,19 +60,28 @@ export function useDecisionReplay() {
     setLoading(true)
     setRecord(null)
     setError(false)
+    selectedIncidentId.current = id
     setIncidentId(id)
     setReplayMessage('')
   }
 
   const replayIncident = async () => {
     if (!incidentId) return
+    const replayedIncidentId = incidentId
     setReplaying(true)
     setReplayMessage('')
     try {
-      const { data } = await runDecisionReplay(incidentId)
-      setReplayMessage(data.message)
+      const { data: replayResult } = await runDecisionReplay(replayedIncidentId)
+      const { data: refreshedRecord } = await getDecisionReplay(replayedIncidentId)
+      if (selectedIncidentId.current === replayedIncidentId) {
+        setRecord(refreshedRecord)
+        setReplayMessage(replayResult.message)
+      }
     } catch {
-      setError(true)
+      if (selectedIncidentId.current === replayedIncidentId) {
+        setRecord(null)
+        setError(true)
+      }
     } finally {
       setReplaying(false)
     }

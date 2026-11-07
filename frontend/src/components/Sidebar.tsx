@@ -86,15 +86,6 @@ export default function Sidebar({
       </div>
 
       <div className="mt-auto p-4">
-        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="size-2 rounded-full bg-emerald-400" />
-            <p className="text-xs font-medium text-slate-200">Systems operational</p>
-          </div>
-          <p className="text-[11px] leading-5 text-slate-500">
-            Intelligence feeds are up to date.
-          </p>
-        </div>
         <p className="px-1 pt-4 text-[10px] text-slate-600">SHOCKWAVE AI · 1.0</p>
       </div>
     </aside>

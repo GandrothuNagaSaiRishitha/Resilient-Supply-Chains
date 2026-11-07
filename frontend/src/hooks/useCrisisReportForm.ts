@@ -3,6 +3,7 @@ import {
   getCrisisReportFormOptions,
   submitCrisisReport,
 } from '../services/crisisReportService'
+import { normalizeApiError } from '../services/api'
 import type {
   CrisisReportFormOptions,
   CrisisReportRequest,
@@ -69,9 +70,9 @@ export function useCrisisReportForm() {
   const [values, setValues] = useState(initialFormValues)
   const [options, setOptions] = useState<CrisisReportFormOptions | null>(null)
   const [optionsLoading, setOptionsLoading] = useState(true)
-  const [optionsError, setOptionsError] = useState(false)
+  const [optionsError, setOptionsError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<CrisisReportResponse | null>(null)
   const [optionsRetryKey, setOptionsRetryKey] = useState(0)
 
@@ -79,7 +80,9 @@ export function useCrisisReportForm() {
     let active = true
     getCrisisReportFormOptions()
       .then(({ data }) => { if (active) setOptions(data) })
-      .catch(() => { if (active) setOptionsError(true) })
+      .catch((error: unknown) => {
+        if (active) setOptionsError(normalizeApiError(error).message)
+      })
       .finally(() => { if (active) setOptionsLoading(false) })
     return () => { active = false }
   }, [optionsRetryKey])
@@ -90,7 +93,7 @@ export function useCrisisReportForm() {
   ) => {
     setValues((current) => ({ ...current, [key]: value }))
     setConfirmation(null)
-    setSubmitError(false)
+    setSubmitError(null)
   }
 
   const changeCrisisType = (crisisType: CrisisType | '') => {
@@ -110,32 +113,32 @@ export function useCrisisReportForm() {
           : '',
     }))
     setConfirmation(null)
-    setSubmitError(false)
+    setSubmitError(null)
   }
 
   const reset = () => {
     setValues({ ...initialFormValues, incidentDate: getLocalDate() })
     setConfirmation(null)
-    setSubmitError(false)
+    setSubmitError(null)
   }
 
   const retryOptions = () => {
     setOptions(null)
     setOptionsLoading(true)
-    setOptionsError(false)
+    setOptionsError(null)
     setOptionsRetryKey((key) => key + 1)
   }
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setSubmitting(true)
-    setSubmitError(false)
+    setSubmitError(null)
     setConfirmation(null)
     try {
       const { data } = await submitCrisisReport(toRequest(values))
       setConfirmation(data)
-    } catch {
-      setSubmitError(true)
+    } catch (error: unknown) {
+      setSubmitError(normalizeApiError(error).message)
     } finally {
       setSubmitting(false)
     }

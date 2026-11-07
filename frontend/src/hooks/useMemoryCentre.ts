@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   getMemoryCentreData,
   getMemoryDetail,
   searchMemories,
 } from '../services/memoryService'
+import { normalizeApiError } from '../services/api'
 import type {
   HistoricalIncidentMemory,
   MemoryCentreData,
@@ -26,12 +27,13 @@ export function useMemoryCentre() {
   const [selectedCrisisType, setSelectedCrisisType] = useState<CrisisType | ''>('')
   const [loading, setLoading] = useState(true)
   const [searching, setSearching] = useState(false)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [detail, setDetail] = useState<HistoricalIncidentMemory | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
-  const [detailError, setDetailError] = useState(false)
+  const [detailError, setDetailError] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [retryKey, setRetryKey] = useState(0)
+  const filterRequestId = useRef(0)
 
   useEffect(() => {
     let active = true
@@ -42,22 +44,29 @@ export function useMemoryCentre() {
           setMemories(response.memories)
         }
       })
-      .catch(() => { if (active) setError(true) })
+      .catch((error: unknown) => {
+        if (active) setError(normalizeApiError(error).message)
+      })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [retryKey])
 
   const updateFilter = async (nextFilters: MemoryFilters) => {
+    const requestId = ++filterRequestId.current
     setFilters(nextFilters)
     setSearching(true)
     try {
       const { data: results } = await searchMemories(nextFilters)
-      setMemories(results)
-      setError(false)
-    } catch {
-      setError(true)
+      if (requestId === filterRequestId.current) {
+        setMemories(results)
+        setError(null)
+      }
+    } catch (error: unknown) {
+      if (requestId === filterRequestId.current) {
+        setError(normalizeApiError(error).message)
+      }
     } finally {
-      setSearching(false)
+      if (requestId === filterRequestId.current) setSearching(false)
     }
   }
 
@@ -83,12 +92,12 @@ export function useMemoryCentre() {
     setDetailOpen(true)
     setDetail(null)
     setDetailLoading(true)
-    setDetailError(false)
+    setDetailError(null)
     try {
       const { data: memory } = await getMemoryDetail(memoryId)
       setDetail(memory)
-    } catch {
-      setDetailError(true)
+    } catch (error: unknown) {
+      setDetailError(normalizeApiError(error).message)
     } finally {
       setDetailLoading(false)
     }
@@ -97,7 +106,7 @@ export function useMemoryCentre() {
   const closeDetail = () => {
     setDetailOpen(false)
     setDetail(null)
-    setDetailError(false)
+    setDetailError(null)
   }
 
   const retrievedMemories = useMemo(() => {
@@ -106,7 +115,9 @@ export function useMemoryCentre() {
   }, [memories, selectedCrisisType])
 
   const retry = () => {
-    setError(false)
+    filterRequestId.current += 1
+    setSearching(false)
+    setError(null)
     setLoading(true)
     setRetryKey((key) => key + 1)
   }

@@ -7,9 +7,13 @@ export default function HistoricalEvidence({ records }: { records: HistoricalEvi
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40">
       <SectionHeader icon={<History size={18} />} title="Historical evidence" description={isMockMode ? 'Synthetic examples shown for context; they are not actual historical system records.' : 'Historical evidence supplied by the backend response.'} tag={isMockMode ? 'Synthetic demo records' : 'Backend evidence'} />
-      <div className="grid gap-4 p-5 md:grid-cols-2 sm:p-6">
-        {records.map((evidence) => <EvidenceCard key={evidence.id} evidence={evidence} />)}
-      </div>
+      {records.length === 0 ? (
+        <p className="p-6 text-center text-sm text-slate-500">No historical evidence is available for this incident.</p>
+      ) : (
+        <div className="grid gap-4 p-5 md:grid-cols-2 sm:p-6">
+          {records.map((evidence) => <EvidenceCard key={evidence.id} evidence={evidence} />)}
+        </div>
+      )}
     </section>
   )
 }
