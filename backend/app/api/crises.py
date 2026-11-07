@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from ..db import get_db
 from ..deps import CurrentContext, audit, get_current_context
