@@ -44,17 +44,17 @@ Copy `.env.example` to `.env.local` and set:
 | Variable | Required | Meaning |
 |---|---:|---|
 | `VITE_DATA_SOURCE` | No | `mock` (default) or `api`. Any other value is rejected during app configuration. |
-| `VITE_API_BASE_URL` | In API mode | Backend origin/base path, for example `http://localhost:8000`. Never put credentials or API keys here. |
+| `VITE_API_BASE_URL` | In API mode | Backend origin/base path, for example `http://127.0.0.1:8000`. Never put credentials or API keys here. |
 
 The Axios request timeout is currently fixed at 15 seconds. The API mode requires a non-empty base URL and will return a normalized configuration error if missing.
 
-## Service functions and proposed backend contract
+## Service functions and backend contract
 
-**Every path below is a frontend proposal only, not a confirmed backend endpoint.** Confirm route names, authentication, request validation, response schema, pagination, and status codes with the backend team before connecting a deployed environment. Proposed paths are centralized in `src/services/apiEndpoints.ts`.
+The Dashboard route and response below match the FastAPI backend. Other paths remain frontend proposals and must be confirmed before use. Paths are centralized in `src/services/apiEndpoints.ts`.
 
-| Feature | Service functions | Proposed method and path | Expected response data |
+| Feature | Service functions | Method and path | Expected response data |
 |---|---|---|---|
-| Dashboard | `getDashboardOverview()` | `GET /api/dashboard/overview` | `DashboardOverview` (`kpis`, `health`, `disruptionTrend`, `incidents`, `recoveryActivities`, `alerts`) |
+| Dashboard | `getDashboardOverview()` | `GET /api/v1/dashboard` (Bearer token from `POST /api/v1/auth/demo-login`) | Direct dashboard payload: `kpis`, `charts`, `upcoming_deliveries`, `generated_at`, `synthetic_demo_data` |
 | Crisis reporting | `getCrisisReportFormOptions()` | `GET /api/crises/form-options` | `CrisisReportFormOptions` (`crisisTypes`, `suppliers`, `urgencies`) |
 | Crisis reporting | `submitCrisisReport(request)` | `POST /api/crises` | `CrisisReportResponse` (`incidentId`, optional `demo`, `message`) |
 | Impact analysis | `getImpactIncidents()` | `GET /api/impacts/incidents` | `ImpactIncidentOption[]` |
@@ -96,7 +96,7 @@ The feature types currently describe the response `data` structures. Some domain
 
 ## Integration steps
 
-1. Agree and document endpoint paths, request/response schemas, auth, CORS, error format, and pagination with the backend team. The current paths are provisional.
+1. Agree and document endpoint paths, request/response schemas, auth, CORS, error format, and pagination with the backend team. The Dashboard path/schema are confirmed; other paths are provisional.
 2. Update `apiEndpoints.ts` and the response/request domain types to match the confirmed OpenAPI/backend contract.
 3. Configure the local/deployment environment with `VITE_DATA_SOURCE=api` and `VITE_API_BASE_URL`; inject secrets only through an approved server-side/auth mechanism, never source code or a Vite-exposed variable.
 4. Verify each service with contract/integration tests, including non-2xx errors, timeouts, empty results, and invalid IDs. Do not mask failures with mock values.
@@ -105,5 +105,4 @@ The feature types currently describe the response `data` structures. Some domain
 
 ## Features still using mock data by default
 
-When `VITE_DATA_SOURCE` is unset or `mock`, **all seven pages** use the existing illustrative mock datasets. In API mode each page's service switches to the proposed endpoint. Real backend schemas/endpoints are not confirmed, and therefore no backend/Hindsight implementation is included in this repository.
-
+When `VITE_DATA_SOURCE` is unset or `mock`, **all seven pages** use the existing illustrative mock datasets. In API mode the Dashboard calls the confirmed backend endpoint and does not fall back to mock data if the request fails. Other pages still call their proposed endpoints.

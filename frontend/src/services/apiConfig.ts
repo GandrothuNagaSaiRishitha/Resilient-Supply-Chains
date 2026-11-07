@@ -10,5 +10,6 @@ export const dataSource: DataSource = configuredSource
 export const isMockMode = dataSource === 'mock'
 
 export function getApiBaseUrl(): string | undefined {
+  if (import.meta.env.DEV) return ''
   return import.meta.env.VITE_API_BASE_URL?.trim() || undefined
 }

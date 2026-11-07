@@ -4,6 +4,7 @@ import IncidentAndAlerts from '../components/dashboard/IncidentAndAlerts'
 import DashboardKpis from '../components/dashboard/DashboardKpis'
 import RecoveryActivities from '../components/dashboard/RecoveryActivities'
 import TrendAndHealth from '../components/dashboard/TrendAndHealth'
+import { normalizeApiError } from '../services/api'
 import { getDashboardOverview } from '../services/dashboardService'
 import { isMockMode } from '../services/apiConfig'
 import type { DashboardOverview } from '../types/dashboard'
@@ -25,13 +26,13 @@ function DashboardLoading() {
   )
 }
 
-function DashboardError({ onRetry }: { onRetry: () => void }) {
+function DashboardError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-rose-200 bg-white p-8 text-center">
       <TriangleAlert className="mb-3 text-rose-500" size={28} />
       <h2 className="font-semibold text-slate-900">Dashboard unavailable</h2>
       <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
-        Dashboard data could not be loaded. Please try again.
+        {message}
       </p>
       <button
         type="button"
@@ -65,14 +66,14 @@ function DashboardContent({ dashboard }: { dashboard: DashboardOverview }) {
       </div>
       <DashboardKpis kpis={dashboard.kpis} />
       <TrendAndHealth
-        disruptionTrend={dashboard.disruptionTrend}
-        health={dashboard.health}
+        deliveryDelayTrend={dashboard.deliveryDelayTrend}
+        supplierReliabilitySummary={dashboard.supplierReliabilitySummary}
       />
       <IncidentAndAlerts
-        incidents={dashboard.incidents}
-        alerts={dashboard.alerts}
+        upcomingDeliveries={dashboard.upcomingDeliveries}
+        pendingAlerts={dashboard.pendingAlerts}
       />
-      <RecoveryActivities activities={dashboard.recoveryActivities} />
+      <RecoveryActivities suppliers={dashboard.supplierReliability} />
     </>
   )
 }
@@ -80,17 +81,17 @@ function DashboardContent({ dashboard }: { dashboard: DashboardOverview }) {
 export default function DashboardPage() {
   const [dashboard, setDashboard] = useState<DashboardOverview | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let active = true
     getDashboardOverview()
       .then((response) => {
-        if (active) setDashboard(response.data)
+        if (active) setDashboard(response)
       })
-      .catch(() => {
-        if (active) setError(true)
+      .catch((requestError: unknown) => {
+        if (active) setError(normalizeApiError(requestError).message)
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -103,11 +104,18 @@ export default function DashboardPage() {
 
   const retry = () => {
     setLoading(true)
-    setError(false)
+    setError(null)
     setReloadKey((key) => key + 1)
   }
 
   if (loading) return <DashboardLoading />
-  if (error || !dashboard) return <DashboardError onRetry={retry} />
+  if (error || !dashboard) {
+    return (
+      <DashboardError
+        message={error ?? 'Dashboard data could not be loaded. Please try again.'}
+        onRetry={retry}
+      />
+    )
+  }
   return <DashboardContent dashboard={dashboard} />
 }

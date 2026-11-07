@@ -29,3 +29,12 @@ markers = [
   "integration: requires a live Hindsight server",
   "slow: long-running real-memory experiment",
 ]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+exclude = ["alembic*"]

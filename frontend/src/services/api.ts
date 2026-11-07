@@ -1,6 +1,7 @@
 import axios, { isAxiosError, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import type { ApiErrorPayload } from '../types/api'
 import { dataSource, getApiBaseUrl } from './apiConfig'
+import { getAccessToken } from './authService'
 
 export class ApiClientError extends Error {
   readonly status?: number
@@ -23,10 +24,16 @@ export class ApiClientError extends Error {
 
 function getErrorMessage(error: AxiosError<ApiErrorPayload>): string {
   const payload = error.response?.data
+  if (error.code === 'ERR_CANCELED') return 'The API request was cancelled before it completed.'
+  if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+    return 'The API request timed out. Check that the backend is running and try again.'
+  }
+  if (!error.response) {
+    return 'Could not reach the API. Check the backend connection and CORS configuration, then try again.'
+  }
   return payload?.message
     ?? payload?.detail
     ?? payload?.error
-    ?? error.message
     ?? 'The API request failed.'
 }
 
@@ -54,11 +61,15 @@ const api = axios.create({
 })
 
 api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    if (dataSource === 'api' && !getApiBaseUrl()) {
+  async (config: InternalAxiosRequestConfig) => {
+    if (dataSource === 'api' && !getApiBaseUrl() && !import.meta.env.DEV) {
       throw new ApiClientError('VITE_API_BASE_URL is required when VITE_DATA_SOURCE is "api".', {
         code: 'API_BASE_URL_MISSING',
       })
+    }
+    if (dataSource === 'api') {
+      const accessToken = await getAccessToken()
+      config.headers.set('Authorization', `Bearer ${accessToken}`)
     }
     return config
   },

@@ -1,9 +1,6 @@
-/**
- * Proposed frontend/backend paths only. Confirm all routes with the backend
- * contract before deployment; see FRONTEND_INTEGRATION.md.
- */
 export const apiEndpoints = {
-  dashboard: '/api/dashboard/overview',
+  demoLogin: '/api/v1/auth/demo-login',
+  dashboard: '/api/v1/dashboard',
   crisisFormOptions: '/api/crises/form-options',
   crises: '/api/crises',
   impactIncidents: '/api/impacts/incidents',

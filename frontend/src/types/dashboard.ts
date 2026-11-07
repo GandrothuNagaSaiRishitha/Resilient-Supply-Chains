@@ -1,10 +1,5 @@
-import type { ApiResponse } from './api'
-
 export type KpiIcon = 'disruptions' | 'shipments' | 'orders' | 'inventory'
 export type KpiTone = 'blue' | 'amber' | 'violet' | 'rose'
-export type IncidentSeverity = 'Critical' | 'High' | 'Medium' | 'Low'
-export type IncidentStatus = 'Investigating' | 'Mitigating' | 'Monitoring' | 'Resolved'
-export type RecoveryActivityStatus = 'In progress' | 'Completed'
 
 export interface DashboardKpi {
   id: string
@@ -15,53 +10,69 @@ export interface DashboardKpi {
   tone: KpiTone
 }
 
-export interface DisruptionTrendPoint {
-  date: string
-  disruptions: number
-  delayedShipments: number
+export interface DeliveryDelayTrendPoint {
+  month: string
+  avg_delay_days: number
+  orders: number
 }
 
-export interface SupplyChainHealth {
+export interface SupplierReliability {
+  id: string
+  name: string
+  reliability_score: number
+  on_time_rate: number
+  avg_delay_days: number
+  delivered_orders: number
+  open_orders: number
+  quality_complaints: number
+}
+
+export interface UpcomingDelivery {
+  id: string
+  order_number: string
+  supplier: string
+  promised_date: string
+  priority: string
   status: string
+}
+
+export interface DashboardApiResponse {
+  synthetic_demo_data: boolean
+  generated_at: string
+  kpis: {
+    active_orders: number
+    delivered_orders: number
+    delayed_orders: number
+    at_risk_orders: number
+    avg_delivery_delay_days: number
+    supplier_reliability_avg: number
+    upcoming_deliveries_14d: number
+    pending_alerts: number
+    critical_bottlenecks: number
+    suppliers: number
+    total_orders: number
+  }
+  charts: {
+    on_time_vs_delayed: Array<{ name: string; value: number }>
+    supplier_reliability: SupplierReliability[]
+    delay_trend: DeliveryDelayTrendPoint[]
+    status_distribution: Array<{ status: string; count: number }>
+    risk_distribution: Array<{ risk: string; count: number }>
+  }
+  upcoming_deliveries: UpcomingDelivery[]
+}
+
+export interface SupplierReliabilitySummary {
   score: number
-  summary: string
-  updatedAt: string
-}
-
-export interface DashboardIncident {
-  id: string
-  disruptionType: string
-  location: string
-  severity: IncidentSeverity
-  status: IncidentStatus
-  date: string
-}
-
-export interface RecoveryActivity {
-  id: string
-  title: string
-  description: string
-  owner: string
-  time: string
-  status: RecoveryActivityStatus
-}
-
-export interface PriorityAlert {
-  id: string
-  title: string
-  description: string
-  severity: IncidentSeverity
-  location: string
-  occurredAt: string
+  supplierCount: number
+  generatedAt: string
 }
 
 export interface DashboardOverview {
   kpis: DashboardKpi[]
-  health: SupplyChainHealth
-  disruptionTrend: DisruptionTrendPoint[]
-  incidents: DashboardIncident[]
-  recoveryActivities: RecoveryActivity[]
-  alerts: PriorityAlert[]
+  supplierReliabilitySummary: SupplierReliabilitySummary
+  deliveryDelayTrend: DeliveryDelayTrendPoint[]
+  supplierReliability: SupplierReliability[]
+  upcomingDeliveries: UpcomingDelivery[]
+  pendingAlerts: number
 }
-
-export type DashboardOverviewResponse = ApiResponse<DashboardOverview>
