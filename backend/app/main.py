@@ -12,6 +12,8 @@ from .api import agent as agent_api
 from .api import alerts as alerts_api
 from .api import auth as auth_api
 from .api import dashboard as dashboard_api
+from .api import crises as crises_api
+from .api import impacts as impacts_api
 from .api import lab as lab_api
 from .api import memory as memory_api
 from .api import orders as orders_api
@@ -74,6 +76,8 @@ app.add_middleware(
 for router in (
     auth_api.router,
     dashboard_api.router,
+    crises_api.router,
+    impacts_api.router,
     suppliers_api.router,
     orders_api.router,
     memory_api.router,
