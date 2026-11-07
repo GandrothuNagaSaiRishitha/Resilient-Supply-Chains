@@ -498,3 +498,33 @@ class AuditLog(Base, TimestampMixin):
     entity_id: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
     details: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
     ip_address: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+
+class SupplyChainIncident(Base, TimestampMixin):
+    """Organization-scoped operational disruption reported by a user."""
+    __tablename__ = "supply_chain_incidents"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "incident_number", name="uq_incident_org_number"),
+        Index("ix_incidents_org_status", "organization_id", "status"),
+        Index("ix_incidents_org_date", "organization_id", "incident_date"),
+    )
+    id: Mapped[uuid.UUID] = uuid_pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    incident_number: Mapped[str] = mapped_column(String(40), nullable=False)
+    crisis_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    title: Mapped[str] = mapped_column(String(250), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    supplier_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("suppliers.id", ondelete="SET NULL"), nullable=True, index=True)
+    order_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("purchase_orders.id", ondelete="SET NULL"), nullable=True, index=True)
+    product_component: Mapped[str] = mapped_column(String(200), nullable=False)
+    origin: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    destination: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    expected_delay_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    available_inventory_quantity: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    affected_orders: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    urgency: Mapped[str] = mapped_column(String(20), default="Medium", nullable=False)
+    incident_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="open", nullable=False)
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    reported_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    synthetic: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
