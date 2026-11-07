@@ -41,8 +41,7 @@ def create_crisis(payload: CrisisReportCreate, request: Request, ctx: CurrentCon
         raise HTTPException(status_code=404, detail="Shipment/order not found")
     if order and supplier_id and order.supplier_id != supplier_id:
         raise HTTPException(status_code=422, detail="Shipment does not belong to the selected supplier")
-    count = db.scalar(select(func.count()).select_from(SupplyChainIncident).where(SupplyChainIncident.organization_id == ctx.organization.id)) or 0
-    row = SupplyChainIncident(organization_id=ctx.organization.id, incident_number=f"INC-{count + 1:05d}",
+    row = SupplyChainIncident(organization_id=ctx.organization.id, incident_number=f"INC-{uuid.uuid4().hex[:10].upper()}",
         crisis_type=payload.crisis_type, title=payload.incident_title.strip(), description=payload.description.strip(),
         supplier_id=supplier_id or (order.supplier_id if order else None), order_id=order_id,
         product_component=payload.product_component.strip(), origin=payload.origin, destination=payload.destination,
