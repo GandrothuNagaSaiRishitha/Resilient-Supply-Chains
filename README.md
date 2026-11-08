@@ -42,7 +42,7 @@ This application brings together organization-scoped supplier, order, inventory,
 - Retain suitable outcomes in Hindsight and retrieve relevant experiences later.
 - Replay a decision analytically without changing the historical decision.
 
-**AI and analytics have distinct roles.** The incident recovery and impact APIs use deterministic calculations over PostgreSQL records. The backend's separate AI agent uses Groq tool calling to query validated application data and can retrieve or reflect on Hindsight memories. Hindsight is not a frontend SDK and the incident decision pages do not directly call an LLM.
+**AI and analytics have distinct roles.** Impact analysis and recovery scenarios use deterministic calculations over PostgreSQL records. The Decision Report combines that scenario baseline with a structured Groq recommendation. Before generation, the backend recalls from the authenticated organization's Hindsight bank and reflects only when relevant memories are available. Invalid or unavailable AI output falls back to the deterministic scenario. The separate `/api/v1/agent/*` chat API also uses Groq tool calling, but has no frontend page.
 
 ## Technology stack
 
@@ -100,7 +100,7 @@ In development, Vite proxies `/api` to the backend (by default `http://127.0.0.1
 | Crisis and incident reporting | Loads form options, validates crisis-specific fields, checks supplier/order association, and persists the incident. Shipment disruptions require shipment, origin, destination, and delay; shortages require available inventory. | `ReportCrisisPage`, `useCrisisReportForm`, and `components/report-crisis/`. | `/api/crises/form-options`, `POST /api/crises`; `SupplyChainIncident`, `Supplier`, and optional `PurchaseOrder`. |
 | Impact analysis | Selects a reported incident and calculates exposure using linked open orders and matching inventory. Severity follows the incident urgency. | `ImpactAnalysisPage` and `components/impact-analysis/`. | `/api/impacts/incidents*`; deterministic query/calculation in the impact router using `PurchaseOrder`, `InventoryItem`, and `Supplier`. |
 | Recovery simulations | Builds the four supported scenarios from incident delay, recorded order financial impact, supplier reliability, and inventory/reorder-point values. The user chooses and confirms a strategy; confirmation is persisted. | `RecoverySimulatorPage`, `useRecoverySimulator`, and `components/recovery-simulator/`. | `/api/recovery-simulations/*`; `build_scenario`, metrics service, and `RecoveryConfirmation`. |
-| Decision recommendations and actions | Displays a baseline recommendation, trade-offs, alternatives, and Hindsight evidence. The user can accept, reject, or record an alternative. A rejected action must send a null strategy key. | `DecisionReportPage`, `useDecisionReport`, and `components/decision-report/`. | `/api/decisions/*`; `build_scenario`, Hindsight recall, `ProcurementDecision`, and audit logs. |
+| Decision recommendations and actions | Displays a Groq-generated suggestion grounded in current incident/scenario data and organization-scoped Hindsight evidence, or the deterministic baseline if generation fails. The user can accept, reject, or record an alternative. A rejected action sends a null strategy key. | `DecisionReportPage`, `useDecisionReport`, and `components/decision-report/`. | `/api/decisions/*`; `build_scenario`, Hindsight recall/reflect, `AgentService`, `ProcurementDecision`, and audit logs. |
 | Outcome feedback | Saves actual cost, delay, shortage, affected-order count, success, and lessons. The business outcome is committed to PostgreSQL before Hindsight retention is attempted. | `OutcomeFeedbackForm` within the Decision Report page. | `POST /api/decisions/outcomes`; `DecisionOutcome.details`, `MemoryRecord` provenance, memory operation logs, and the Hindsight bank. |
 | Decision replay | Reconstructs an incident's recorded decision and outcome, compares the current deterministic baseline with organization-scoped Hindsight evidence, and explains the comparison. Running a replay does not execute a recovery or alter the original decision. | `DecisionReplay` page and `pages/DecisionReplay/components/`. | `/api/decision-replays/*`; `ProcurementDecision`, `DecisionOutcome`, `build_scenario`, memory recall, and audit log. |
 | Memory Centre | Recalls outcome memories, shows overview and searchable historical records, and opens an individual result. Search supports crisis type, supplier, outcome, and date range. | `MemoryCentrePage`, `useMemoryCentre`, and `components/memory-centre/`. | `/api/memories*`; Hindsight recall plus the organization-scoped `MemoryRecord` provenance index. |
@@ -112,7 +112,7 @@ In development, Vite proxies `/api` to the backend (by default `http://127.0.0.1
 - Customer labels use order destinations because the current order model does not include a separate customer entity.
 - Warehouse location and coverage-day values are not inferred when source fields are absent.
 - Recovery calculations are deterministic scenario comparisons, not live routing, inventory transfer, supplier purchase, or shipment execution.
-- The memory-informed decision page provides recalled evidence, but the decision endpoint currently keeps the memory-informed recommendation aligned with its deterministic baseline. Do not interpret it as an automatically learned optimizer.
+- Decision recommendations are AI-generated suggestions constrained to the deterministic scenario's supported strategies. Cost, delay, and shortage estimates are taken from the selected scenario; AI output is not an autonomous optimizer or an operational action.
 
 ## Process flows
 
@@ -154,20 +154,25 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[Select incident] --> B[Build deterministic recovery scenario]
-    B --> C[Recall relevant organization Hindsight memories]
-    C --> D[Return recommendation, alternatives and evidence]
-    D --> E{User action}
-    E -- Accepted --> F[POST accepted action and strategy]
-    E -- Rejected --> G[POST rejected action with null strategy]
-    E -- Alternative --> H[POST alternative action and chosen strategy]
-    F --> I[Persist ProcurementDecision]
-    G --> I
+    A[Select incident] --> B[Build deterministic recovery baseline]
+    B --> C[Recall organization-scoped Hindsight memories]
+    C --> D[Reflect when relevant memories exist]
+    D --> E[Groq generates a validated suggestion]
+    E --> F{Groq unavailable or invalid?}
+    F -- Yes --> G[Use deterministic baseline]
+    F -- No --> H[Return AI suggestion and cited evidence]
+    G --> I{User action}
     H --> I
-    I --> J[User submits actual outcome and lessons]
-    J --> K[Persist DecisionOutcome in PostgreSQL]
-    K --> L[Attempt Hindsight retain with outcome metadata]
-    L --> M[Return persistence result and retention status]
+    I -- Accepted --> J[POST accepted action and strategy]
+    I -- Rejected --> K[POST rejected action with null strategy]
+    I -- Alternative --> L[POST alternative action and chosen strategy]
+    J --> M[Persist ProcurementDecision]
+    K --> M
+    L --> M
+    M --> N[User submits actual outcome and lessons]
+    N --> O[Persist DecisionOutcome in PostgreSQL]
+    O --> P[Attempt Hindsight retain with outcome metadata]
+    P --> Q[Return persistence result and retention status]
 ```
 
 ### D. Decision replay
@@ -188,7 +193,7 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A[Incident and verified outcome] --> B[Outcome feedback retained]
+    A[Incident and recorded outcome] --> B[Outcome feedback retained with user-reported provenance]
     B --> C[(Organization-specific Hindsight bank)]
     B --> D[(PostgreSQL MemoryRecord provenance index)]
     D --> E[Join document IDs and metadata to recall hits]
@@ -271,7 +276,7 @@ Valid `strategyKey` values are `wait`, `reroute`, `emergency-sourcing`, and `red
 | Method and path | Auth | Purpose, important inputs, and response |
 |---|---|---|
 | `GET /api/decisions/incidents` | Bearer | List incidents for decision review. |
-| `GET /api/decisions/incidents/{incidentId}/recommendation` | Bearer | Return deterministic scenario recommendation, alternatives, and recalled historical evidence. |
+| `GET /api/decisions/incidents/{incidentId}/recommendation` | Bearer | Build a deterministic baseline, recall and optionally reflect on the current organization's memories, then return a validated Groq suggestion or baseline fallback, alternatives, cited historical evidence, and memory/reflection status. |
 | `POST /api/decisions/actions` | Bearer | Record an `accepted`, `rejected`, or `alternative` action; fields: `incidentId`, `action`, nullable `strategyKey`, and `explanation`. Returns confirmation ID/message. |
 | `POST /api/decisions/outcomes` | Bearer | Record actual cost, delay, shortage, affected orders, success, lessons, and notes. Returns outcome ID/message and whether Hindsight retention was available. |
 
@@ -570,7 +575,7 @@ npm run build
 
 | Check | Result |
 |---|---|
-| Backend pytest suite | **Passed: 4 tests.** These are integration-contract/schema tests, not a large unit or end-to-end suite. |
+| Backend pytest suite | **Passed: 20 tests.** Includes decision generation validation, tenant-scoped recall, outage handling, outcome retention, and crisis contract tests; it is not a substitute for a full browser E2E suite. |
 | Frontend lint (`npm run lint`) | **Passed.** |
 | Frontend production build (`npm run build`) | **Passed**, including TypeScript build. |
 | Alembic migration | **Passed**; database reported `f2c9160d14ab (head)`. |
@@ -637,13 +642,13 @@ Local PostgreSQL data, service logs, virtual environments, node modules, and sec
 ## Limitations and future improvements
 
 - **AI agent frontend:** Backend agent endpoints are implemented, but no chat page or frontend service is routed in the current application.
-- **Decision quality:** Scenario calculations are deterministic and bounded by stored data. The current memory-informed recommendation can match the baseline even when historical evidence is displayed.
+- **Decision quality:** Impact and scenario estimates are deterministic and bounded by stored data. Groq may select only a supported strategy and historical citations must reference retrieved evidence; provider failures use the deterministic baseline.
 - **Operational execution:** Recovery confirmation and replay are records/analysis only; they do not create or reroute real shipments, purchase inventory, or transfer stock.
 - **Source data gaps:** Warehouse locations, capacity, consumption rates, and customer entities are not modeled for these workflows. Some impact fields are explicitly assumptions/proxies.
 - **Memory filters:** Memory Centre search recalls a bounded set and then applies filters; it has no pagination or complete-bank export. Insight cards are currently empty.
 - **External dependencies:** Hindsight must be deployed separately. The backend agent requires Groq configuration. A missing/unavailable Hindsight service limits memory features; health reports degraded status.
-- **Automated coverage:** The backend suite currently contains four integration-contract tests. The full workflow was manually smoke-tested; a repeatable automated API/browser E2E suite would improve regression coverage.
-- **Warnings:** pytest-asyncio reports that the default fixture loop scope is unspecified. Vite reports a minified JavaScript chunk above 500 kB. Earlier live Hindsight requests also emitted aiohttp client-session/connector cleanup warnings; these did not prevent successful responses but should be investigated.
+- **Automated coverage:** The backend suite contains 20 tests and the live workflow was manually smoke-tested; a repeatable automated API/browser E2E suite would improve regression coverage.
+- **Warnings:** Vite reports a minified JavaScript chunk above 500 kB. Hindsight Reflect can fail under upstream provider rate limits; the report continues with recalled evidence and marks reflection unavailable.
 - **Production hardening:** Replace development secrets, configure TLS and production CORS, deploy PostgreSQL/Hindsight with backups and monitoring, and define a production deployment pipeline before exposing the service to real operational data.
 
 ## Useful documentation

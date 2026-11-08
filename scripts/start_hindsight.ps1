@@ -4,9 +4,35 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-$envText = Get-Content ".env" -Raw
-$key = ([regex]::Match($envText, 'GROQ_API_KEY=(.+)')).Groups[1].Value.Trim()
-if (-not $key) { throw "GROQ_API_KEY missing from .env" }
+$envPath = [System.IO.Path]::GetFullPath((Join-Path $root ".env"))
+if (-not (Test-Path -LiteralPath $envPath -PathType Leaf)) {
+  throw "Project-root .env file not found: $envPath"
+}
+
+$envText = [System.IO.File]::ReadAllText($envPath, [System.Text.Encoding]::UTF8).TrimStart([char]0xFEFF)
+$keyLine = $envText -split "\r\n|\n|\r" |
+  Where-Object { $_ -match '^\s*(?:export\s+)?GROQ_API_KEY\s*=' } |
+  Select-Object -Last 1
+if (-not $keyLine) {
+  throw "GROQ_API_KEY missing from project-root .env: $envPath"
+}
+
+$assignment = [regex]::Match($keyLine, '^\s*(?:export\s+)?GROQ_API_KEY\s*=\s*(?<value>.*)$')
+$rawKey = $assignment.Groups["value"].Value.Trim()
+if ($rawKey.StartsWith('"') -or $rawKey.StartsWith("'")) {
+  $quote = $rawKey[0]
+  $closingQuote = $rawKey.LastIndexOf($quote)
+  $trailingText = if ($closingQuote -ge 0) { $rawKey.Substring($closingQuote + 1).Trim() } else { $rawKey }
+  if ($closingQuote -le 0 -or ($trailingText -and -not $trailingText.StartsWith("#"))) {
+    throw "GROQ_API_KEY has invalid quoting in project-root .env: $envPath"
+  }
+  $key = $rawKey.Substring(1, $closingQuote - 1)
+} else {
+  $key = [regex]::Replace($rawKey, '\s+#.*$', '').Trim()
+}
+if ([string]::IsNullOrWhiteSpace($key)) {
+  throw "GROQ_API_KEY is empty in project-root .env: $envPath"
+}
 
 $env:PYTHONUTF8 = "1"
 $env:PYTHONIOENCODING = "utf-8"
@@ -61,7 +87,12 @@ if ($existing) {
   exit 0
 }
 
-Start-Process -FilePath "backend\.venv\Scripts\hindsight-api.exe" `
+$hindsightExecutable = Join-Path $root "backend\.venv\Scripts\hindsight-api.exe"
+if (-not (Test-Path -LiteralPath $hindsightExecutable -PathType Leaf)) {
+  throw "Hindsight API executable not found: $hindsightExecutable. Install the Hindsight API server in the backend virtual environment."
+}
+
+Start-Process -FilePath $hindsightExecutable `
   -ArgumentList "--host", "127.0.0.1", "--port", "8888" `
   -RedirectStandardOutput "infra\hindsight.out.log" `
   -RedirectStandardError "infra\hindsight.err.log" `
@@ -70,6 +101,4 @@ Start-Process -FilePath "backend\.venv\Scripts\hindsight-api.exe" `
 Start-Sleep -Seconds 12
 $conn = Get-NetTCPConnection -LocalPort 8888 -State Listen -ErrorAction SilentlyContinue
 if ($conn) { "Hindsight listening on http://127.0.0.1:8888" } else { "Hindsight still starting; see infra/hindsight.out.log" }
-
-
 

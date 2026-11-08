@@ -8,7 +8,9 @@
 
 # Python
 .venv/
+**/.venv/
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 
@@ -22,8 +24,19 @@ postmaster.pid
 
 # Node
 node_modules/
+**/node_modules/
 frontend/.next/
+dist/
+**/dist/
+build/
+**/build/
+.vite/
 
 # Misc
 .DS_Store
 Thumbs.db
+frontend_backup/
+*.egg-info/
+**/*.egg-info/
+.pytest_cache/
+**/.pytest_cache/

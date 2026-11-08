@@ -2,20 +2,23 @@ import { MapPin, Truck } from 'lucide-react'
 import FormField from '../FormField'
 import FormSection from '../FormSection'
 import { reportInputClass } from './formStyles'
+import type { CrisisReportFormOptions } from '../../types/crisisReport'
 import type { CrisisReportFormValues } from '../../types/crisisReportForm'
 
 type Props = {
   values: CrisisReportFormValues
+  options: CrisisReportFormOptions | null
   setField: <K extends keyof CrisisReportFormValues>(
     key: K,
     value: CrisisReportFormValues[K],
   ) => void
 }
 
-export default function ShipmentTimelineFields({ values, setField }: Props) {
+export default function ShipmentTimelineFields({ values, options, setField }: Props) {
   const isShipment = values.crisisType === 'Shipment Disruption'
   const showDelay = isShipment || values.crisisType === 'Supplier Failure'
   if (!isShipment && !showDelay) return null
+  const supplierOrders = options?.orders.filter((order) => order.supplierId === values.supplierId) ?? []
 
   return (
     <FormSection
@@ -26,15 +29,31 @@ export default function ShipmentTimelineFields({ values, setField }: Props) {
       {isShipment && (
         <>
           <FormField label="Shipment ID" htmlFor="shipmentId" required>
-            <input
+            <select
               id="shipmentId"
               name="shipmentId"
               className={reportInputClass}
-              placeholder="Enter a purchase order number"
               value={values.shipmentId}
-              onChange={(event) => setField('shipmentId', event.target.value)}
+              onChange={(event) => {
+                const order = supplierOrders.find((item) => item.orderNumber === event.target.value)
+                setField('shipmentId', event.target.value)
+                if (order) setField('productComponent', order.product)
+              }}
+              disabled={!values.supplierId || supplierOrders.length === 0}
               required
-            />
+            >
+              <option value="">{values.supplierId ? 'Select an open order' : 'Select a supplier first'}</option>
+              {supplierOrders.map((order) => (
+                <option key={order.id} value={order.orderNumber}>
+                  {order.orderNumber} · {order.product} · {order.status.replaceAll('_', ' ')}
+                </option>
+              ))}
+            </select>
+            {values.supplierId && supplierOrders.length === 0 && (
+              <p role="status" className="mt-1 text-[11px] leading-5 text-amber-700">
+                No open orders are recorded for this supplier. Select a supplier with an active order or report a Supplier Failure/Inventory Shortage without linking a shipment.
+              </p>
+            )}
           </FormField>
           <LocationField
             id="origin"

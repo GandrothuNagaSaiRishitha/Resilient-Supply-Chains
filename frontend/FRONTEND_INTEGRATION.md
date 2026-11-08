@@ -50,12 +50,12 @@ The Axios request timeout is currently fixed at 15 seconds. The API mode require
 
 ## Service functions and backend contract
 
-The Dashboard route and response below match the FastAPI backend. Other paths remain frontend proposals and must be confirmed before use. Paths are centralized in `src/services/apiEndpoints.ts`.
+The feature paths below match the registered FastAPI routes. Paths are centralized in `src/services/apiEndpoints.ts`; the backend's generated OpenAPI schema at `/openapi.json` is authoritative.
 
 | Feature | Service functions | Method and path | Expected response data |
 |---|---|---|---|
 | Dashboard | `getDashboardOverview()` | `GET /api/v1/dashboard` (Bearer token from `POST /api/v1/auth/demo-login`) | Direct dashboard payload: `kpis`, `charts`, `upcoming_deliveries`, `generated_at`, `synthetic_demo_data` |
-| Crisis reporting | `getCrisisReportFormOptions()` | `GET /api/crises/form-options` | `CrisisReportFormOptions` (`crisisTypes`, `suppliers`, `urgencies`) |
+| Crisis reporting | `getCrisisReportFormOptions()` | `GET /api/crises/form-options` | `CrisisReportFormOptions` (`crisisTypes`, tenant-scoped `suppliers` and open `orders`, `urgencies`) |
 | Crisis reporting | `submitCrisisReport(request)` | `POST /api/crises` | `CrisisReportResponse` (`incidentId`, optional `demo`, `message`) |
 | Impact analysis | `getImpactIncidents()` | `GET /api/impacts/incidents` | `ImpactIncidentOption[]` |
 | Impact analysis | `getImpactAnalysis(incidentId)` | `GET /api/impacts/incidents/{incidentId}` | `ImpactAnalysis` |
@@ -63,7 +63,7 @@ The Dashboard route and response below match the FastAPI backend. Other paths re
 | Recovery simulation | `getSimulationScenario(incidentId)` | `GET /api/recovery-simulations/incidents/{incidentId}` | `SimulationScenario` |
 | Recovery simulation | `confirmRecoveryStrategy(request)` | `POST /api/recovery-simulations/confirmations` | `ConfirmStrategyResponse` |
 | Decision recommendations | `getDecisionIncidents()` | `GET /api/decisions/incidents` | `SimulationIncident[]` |
-| Decision recommendations | `getDecisionReport(incidentId)` | `GET /api/decisions/incidents/{incidentId}/recommendation` | `DecisionReport` |
+| Decision recommendations | `getDecisionReport(incidentId)` | `GET /api/decisions/incidents/{incidentId}/recommendation` | `DecisionReport`, including `aiRecommendation`, `memoryStatus`, and `reflectionStatus` |
 | Decision actions | `submitDecisionAction(request)` | `POST /api/decisions/actions` | `DecisionActionResponse` |
 | Outcome feedback | `submitOutcomeFeedback(request)` | `POST /api/decisions/outcomes` | `OutcomeFeedbackResponse` |
 | Memory retrieval | `getMemoryCentreData()` | `GET /api/memories/overview` | `MemoryCentreData` |
@@ -82,7 +82,7 @@ The domain request interfaces in `src/types/` are the source of truth for reques
 - `DecisionActionRequest`: `incidentId`, action (`accepted`, `rejected`, or `alternative`), nullable strategy key, and explanation.
 - `OutcomeFeedbackRequest`: incident and selected strategy, actual cost/delay/shortage/order values, success boolean, lessons, and notes.
 - Memory search sends the non-empty `MemoryFilters` fields (`crisisType`, `supplier`, `outcome`, `dateFrom`, `dateTo`) as query parameters.
-- Decision replay currently requires only the selected incident ID in the proposed replay path. Agree any replay controls/options with the backend before extending this contract.
+- Decision replay currently requires only the selected incident ID. The Decision Report accepts `?incidentId=...` to open a newly submitted incident directly.
 
 The feature types currently describe the response `data` structures. Some domain fields originated as mock-only records and may need to be versioned or made optional once real backend schemas are agreed. The optional `demo` markers must not be used by the backend as a substitute for an explicit source/provenance contract.
 
@@ -91,13 +91,13 @@ The feature types currently describe the response `data` structures. Some domain
 - `mock` mode serves only the local data files and preserves the existing demo experience.
 - `api` mode calls Axios and returns only the backend response. Network errors, HTTP errors, malformed configuration, and missing records reject through the shared normalized error path; services do not silently fall back to mock data.
 - Page hooks already expose loading/error states for dashboard, impact, recovery, memory, decision report, and decision replay. Crisis report options now have loading, empty supplier, and retry states. Empty table/list/chart states are present where data can be absent.
-- The Memory Centre browser does not call Hindsight. A backend may connect Hindsight behind the proposed memory endpoints; that is a backend implementation/contract decision and must be documented as such.
+- The browser calls the configured memory API; the backend uses the official Hindsight client for organization-scoped retain, recall, and reflect. The browser never connects directly to Hindsight.
 - The navbar indicates whether the configured source is mock or API. In API mode, record provenance and real persistence still depend on the backend response and must not be inferred by the frontend.
 
 ## Integration steps
 
-1. Agree and document endpoint paths, request/response schemas, auth, CORS, error format, and pagination with the backend team. The Dashboard path/schema are confirmed; other paths are provisional.
-2. Update `apiEndpoints.ts` and the response/request domain types to match the confirmed OpenAPI/backend contract.
+1. Keep this contract and `apiEndpoints.ts` aligned with FastAPI's generated OpenAPI schema when routes change.
+2. Keep response/request domain types aligned with the actual endpoint envelopes and backend tests.
 3. Configure the local/deployment environment with `VITE_DATA_SOURCE=api` and `VITE_API_BASE_URL`; inject secrets only through an approved server-side/auth mechanism, never source code or a Vite-exposed variable.
 4. Verify each service with contract/integration tests, including non-2xx errors, timeouts, empty results, and invalid IDs. Do not mask failures with mock values.
 5. Confirm CORS/auth policy and backend Hindsight provenance before enabling memory endpoints for production.
@@ -105,4 +105,4 @@ The feature types currently describe the response `data` structures. Some domain
 
 ## Features still using mock data by default
 
-When `VITE_DATA_SOURCE` is unset or `mock`, **all seven pages** use the existing illustrative mock datasets. In API mode the Dashboard calls the confirmed backend endpoint and does not fall back to mock data if the request fails. Other pages still call their proposed endpoints.
+When `VITE_DATA_SOURCE` is unset or `mock`, pages use their illustrative local datasets. In API mode, feature services call the backend endpoints above and reject normalized errors rather than silently falling back to mock responses.

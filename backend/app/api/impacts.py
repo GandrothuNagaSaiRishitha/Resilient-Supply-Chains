@@ -7,7 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from ..db import get_db
 from ..deps import CurrentContext, get_current_context
-from ..models import InventoryItem, PurchaseOrder, Supplier, SupplyChainIncident
+from ..models import PurchaseOrder, Supplier, SupplyChainIncident
+from .common import inventory_for_component
 
 router = APIRouter(prefix="/impacts", tags=["impact-analysis"])
 
@@ -35,11 +36,7 @@ def _analysis(row: SupplyChainIncident, db: Session, org_id: uuid.UUID) -> dict:
         if row.supplier_id
         else None
     )
-    iq = select(InventoryItem).where(InventoryItem.organization_id == org_id)
-    if row.supplier_id: iq = iq.where(InventoryItem.supplier_id == row.supplier_id)
-    if row.product_component:
-        iq = iq.where(InventoryItem.name.ilike(f"%{row.product_component}%") | InventoryItem.sku.ilike(f"%{row.product_component}%"))
-    inventory = db.scalars(iq.limit(200)).all()
+    inventory = inventory_for_component(db, org_id, row.supplier_id, row.product_component)
     shortage = sum(max(0, i.reorder_point - i.quantity_on_hand) for i in inventory)
     exposure = sum(o.financial_impact for o in orders)
     delay = row.expected_delay_days or 0

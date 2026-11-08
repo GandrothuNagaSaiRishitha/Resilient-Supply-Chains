@@ -40,13 +40,19 @@ def _historical_memory(record: dict) -> dict | None:
 def _memories(db: Session, ctx: CurrentContext, query: str) -> list[dict]:
     records = memory_service.records(db, ctx.organization, limit=1000)
     by_document = {record.get("document_id"): record for record in records if record.get("document_id")}
-    recalled = memory_service.recall(
-        db,
-        ctx.organization,
-        query=query,
-        max_tokens=16000,
-        budget="low",
-    )
+    try:
+        recalled = memory_service.recall(
+            db,
+            ctx.organization,
+            query=query,
+            max_tokens=16000,
+            budget="low",
+        )
+    except memory_service.HindsightUnavailable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Hindsight memory retrieval is unavailable. Check the Hindsight service and try again.",
+        ) from exc
     memories = []
     for hit in recalled["results"]:
         provenance = hit.get("provenance") or {}

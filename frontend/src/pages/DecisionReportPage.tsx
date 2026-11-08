@@ -27,6 +27,9 @@ export default function DecisionReportPage() {
     decisionConfirmation,
     decisionError,
   } = decision
+  const recommendedStrategyKey = report?.aiRecommendation?.status === 'generated'
+    ? report.aiRecommendation.strategyKey
+    : report?.scenario.recommendedStrategyKey
 
   return (
     <div className="space-y-5">
@@ -59,7 +62,7 @@ export default function DecisionReportPage() {
             selectedKey={strategyKey}
             onSelect={decision.selectAlternative}
           />
-          <HistoricalEvidence records={report.historicalEvidence} />
+          <HistoricalEvidence records={report.historicalEvidence} memoryStatus={report.memoryStatus} />
           <MemoryComparison report={report} />
           <DecisionActions
             action={action}
@@ -76,7 +79,7 @@ export default function DecisionReportPage() {
           <OutcomeFeedbackForm
             key={report.scenario.incident.id}
             report={report}
-            initialStrategyKey={report.scenario.recommendedStrategyKey}
+            initialStrategyKey={recommendedStrategyKey ?? report.scenario.recommendedStrategyKey}
             onSubmit={async (request) => {
               const { data } = await submitOutcomeFeedback(request)
               return data.outcomeId

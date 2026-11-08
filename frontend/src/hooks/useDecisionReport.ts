@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   getDecisionIncidents,
   getDecisionReport,
@@ -11,6 +12,8 @@ import type {
 import type { RecoveryStrategyKey } from '../types/simulation'
 
 export function useDecisionReport() {
+  const [searchParams] = useSearchParams()
+  const requestedIncidentId = searchParams.get('incidentId')
   const [incidents, setIncidents] = useState<DecisionReport['scenario']['incident'][]>([])
   const [incidentId, setIncidentId] = useState('')
   const [report, setReport] = useState<DecisionReport | null>(null)
@@ -31,14 +34,18 @@ export function useDecisionReport() {
       .then(({ data }) => {
         if (active) {
           setIncidents(data)
-          setIncidentId((current) => current || data[0]?.id || '')
+          setIncidentId((current) => (
+            requestedIncidentId && data.some((incident) => incident.id === requestedIncidentId)
+              ? requestedIncidentId
+              : current || data[0]?.id || ''
+          ))
           if (data.length > 0) setLoadingReport(true)
         }
       })
       .catch(() => { if (active) setError(true) })
       .finally(() => { if (active) setLoadingIncidents(false) })
     return () => { active = false }
-  }, [retryKey])
+  }, [retryKey, requestedIncidentId])
 
   useEffect(() => {
     if (!incidentId) return
@@ -88,7 +95,11 @@ export function useDecisionReport() {
 
   const selectRecommended = () => {
     setAction('accepted')
-    setStrategyKey(report?.scenario.recommendedStrategyKey ?? null)
+    setStrategyKey(
+      report?.aiRecommendation?.status === 'generated'
+        ? report.aiRecommendation.strategyKey
+        : report?.scenario.recommendedStrategyKey ?? null,
+    )
     clearConfirmation()
   }
 
@@ -100,7 +111,10 @@ export function useDecisionReport() {
 
   const selectAlternative = (key: RecoveryStrategyKey) => {
     setStrategyKey(key)
-    setAction(key === report?.scenario.recommendedStrategyKey ? 'accepted' : 'alternative')
+    const recommendedKey = report?.aiRecommendation?.status === 'generated'
+      ? report.aiRecommendation.strategyKey
+      : report?.scenario.recommendedStrategyKey
+    setAction(key === recommendedKey ? 'accepted' : 'alternative')
     clearConfirmation()
   }
 

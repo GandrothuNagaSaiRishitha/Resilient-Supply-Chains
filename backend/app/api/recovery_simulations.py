@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..deps import get_current_context, CurrentContext, audit
 from ..models import (
-    InventoryItem,
     PurchaseOrder,
     Supplier,
     SupplyChainIncident,
@@ -17,6 +16,7 @@ from ..models import (
 )
 from ..schemas_incidents import RecoveryConfirmationCreate
 from ..services import metrics as metrics_service
+from .common import inventory_for_component
 
 router = APIRouter(prefix="/recovery-simulations", tags=["recovery-simulations"])
 
@@ -75,17 +75,7 @@ def build_scenario(db: Session, org_id: uuid.UUID, row: SupplyChainIncident) -> 
         else None
     )
     base_cost = float(order.financial_impact) if order else 0.0
-    component_filter = (
-        (InventoryItem.name.ilike(f"%{row.product_component}%"))
-        | (InventoryItem.sku.ilike(f"%{row.product_component}%"))
-    )
-    inventory_query = select(InventoryItem).where(
-        InventoryItem.organization_id == org_id,
-        component_filter,
-    )
-    if row.supplier_id:
-        inventory_query = inventory_query.where(InventoryItem.supplier_id == row.supplier_id)
-    affected_inventory = db.scalars(inventory_query).all()
+    affected_inventory = inventory_for_component(db, org_id, row.supplier_id, row.product_component)
     if row.available_inventory_quantity is not None:
         baseline_shortage = sum(
             max(0, item.reorder_point - row.available_inventory_quantity)
@@ -96,16 +86,10 @@ def build_scenario(db: Session, org_id: uuid.UUID, row: SupplyChainIncident) -> 
             max(0, item.reorder_point - item.quantity_on_hand)
             for item in affected_inventory
         )
-    transferable_query = select(InventoryItem).where(
-        InventoryItem.organization_id == org_id,
-        component_filter,
-        InventoryItem.quantity_on_hand > InventoryItem.reorder_point,
-    )
-    if row.supplier_id:
-        transferable_query = transferable_query.where(InventoryItem.supplier_id != row.supplier_id)
     transferable_units = sum(
         item.quantity_on_hand - item.reorder_point
-        for item in db.scalars(transferable_query).all()
+        for item in inventory_for_component(db, org_id, None, row.product_component)
+        if item.supplier_id != row.supplier_id and item.quantity_on_hand > item.reorder_point
     )
 
     strategies = []
