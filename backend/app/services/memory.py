@@ -179,6 +179,7 @@ def retain(
     bank = bank_for(organization, bank_id)
     document_id = document_id or str(uuid.uuid4())
     meta = {
+        **(metadata or {}),
         "company_id": str(organization.id),
         "bank_id": bank,
         "memory_category": category,
@@ -188,7 +189,6 @@ def retain(
         "supplier_id": str(supplier_id) if supplier_id else None,
         "order_id": str(order_id) if order_id else None,
         "event_date": (_aware(event_date) or datetime.now(timezone.utc)).isoformat(),
-        **(metadata or {}),
     }
     started = time.perf_counter()
     client: Hindsight | None = None
@@ -599,8 +599,9 @@ def reset_bank(db: Session, organization: Organization, bank_id: str | None = No
     client = _client()
     try:
         client.delete_bank(bank)
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("failed to delete Hindsight bank %s", bank)
+        raise HindsightUnavailable("Hindsight bank reset failed") from exc
     finally:
         _close_client(client)
     ensure_bank(organization, bank)

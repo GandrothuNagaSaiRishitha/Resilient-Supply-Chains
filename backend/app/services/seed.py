@@ -574,10 +574,20 @@ def seed_demo(db: Session, force: bool = False, retain_memories: bool = True) ->
                 MemoryRecord.synthetic.is_(True),
             )
         ).all()
-        if force or len(existing) < len(LAB_EXPERIENCES):
+        if force:
             if existing:
                 memory_service.reset_bank(db, org)
             memory_result = seed_memories(db, org)
+        elif not existing:
+            memory_result = seed_memories(db, org)
+        else:
+            memory_result = {
+                "retained": 0,
+                "errors": 0,
+                "total": len(existing),
+                "details": [],
+                "preserved_existing": True,
+            }
     result["memory"] = memory_result
     result["demo_user"] = DEMO_EMAIL
     return result

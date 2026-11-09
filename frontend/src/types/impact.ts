@@ -18,7 +18,7 @@ export interface ImpactIncidentOption {
 export interface ImpactKpi {
   id: string
   label: string
-  value: number
+  value: number | null
   unit?: string
   formattedValue: string
   severity: RiskSeverity
@@ -39,7 +39,7 @@ export interface WarehouseImpact {
   location: string
   availableInventory: number
   inventoryAtRisk: number
-  coverageDays: number
+  coverageDays: number | null
   severity: RiskSeverity
 }
 

@@ -22,6 +22,9 @@ def _historical_memory(record: dict) -> dict | None:
     supplier = record.get("supplier") or "Unassigned"
     success = successful is True or str(successful).lower() == "true"
     strategy = metadata.get("strategy_key") or "Not recorded"
+    source_type = record.get("source_type") or metadata.get("source_type")
+    verified = record.get("verified", metadata.get("verified"))
+    confidence = record.get("confidence", metadata.get("confidence"))
     return {
         "id": record["id"],
         "incidentDate": event_date[:10] if event_date else "",
@@ -35,6 +38,9 @@ def _historical_memory(record: dict) -> dict | None:
         "outcome": "Successful" if success else "Ineffective",
         "lessonLearned": metadata.get("lessons_learned") or content,
         "demoRecord": bool(record.get("synthetic")),
+        "sourceType": source_type,
+        "verified": verified if isinstance(verified, bool) else None,
+        "confidence": confidence,
     }
 
 def _memories(db: Session, ctx: CurrentContext, query: str) -> list[dict]:
@@ -64,6 +70,9 @@ def _memories(db: Session, ctx: CurrentContext, query: str) -> list[dict]:
             "event_date": provenance.get("event_date") or hit.get("occurred_start"),
             "supplier": (record or {}).get("supplier"),
             "synthetic": (record or {}).get("synthetic", False),
+            "source_type": (record or {}).get("source_type") or provenance.get("source_type"),
+            "verified": (record or {}).get("verified", provenance.get("verified")),
+            "confidence": (record or {}).get("confidence", provenance.get("confidence")),
         })
         if memory:
             memories.append(memory)

@@ -55,6 +55,7 @@ class RecoveryConfirmationCreate(BaseModel):
 
 class DecisionActionCreate(BaseModel):
     incident_id: uuid.UUID = Field(alias="incidentId")
+    request_id: uuid.UUID | None = Field(default=None, alias="requestId")
     action: Literal["accepted", "rejected", "alternative"]
     strategy_key: StrategyKey | None = Field(alias="strategyKey")
     explanation: str = Field(default="", max_length=4000)

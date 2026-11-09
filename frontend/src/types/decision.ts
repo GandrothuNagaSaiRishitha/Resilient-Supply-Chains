@@ -21,6 +21,8 @@ export interface HistoricalEvidence {
   lessonLearned: string
   demoRecord?: boolean
   verified?: boolean | null
+  sourceType?: string | null
+  confidence?: number | null
 }
 
 export interface AIRecommendation {
@@ -68,6 +70,7 @@ export type DecisionReportResponse = ApiResponse<DecisionReport>
 
 export interface DecisionActionRequest {
   incidentId: string
+  requestId: string
   action: DecisionAction
   strategyKey: RecoveryStrategyKey | null
   explanation: string

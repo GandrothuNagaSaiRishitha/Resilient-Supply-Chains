@@ -29,7 +29,7 @@ export interface RecoveryStrategy {
   summary: string
   additionalCost: number
   deliveryDelayDays: number
-  projectedShortageUnits: number
+  projectedShortageUnits: number | null
   riskLevel: RiskSeverity
   feasibility: FeasibilityStatus
   feasibilityNote: string

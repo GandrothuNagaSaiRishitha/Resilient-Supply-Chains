@@ -93,9 +93,20 @@ def _memory_block(hits: list[dict], reflect_answer: str | None) -> str:
     lines = []
     for i, hit in enumerate(hits[:8], start=1):
         prov = hit.get("provenance") or {}
-        verified = prov.get("verified", True)
-        verification = "verified" if verified is True else "unverified or unknown"
-        lines.append(f"[M{i}] ({hit.get('type') or 'memory'}, {verification}) {hit['text'][:500]}")
+        source_type = prov.get("source_type") or "unknown"
+        verified = prov.get("verified", False)
+        if verified is True:
+            verification = "verified"
+        elif source_type == "user_reported_fact":
+            verification = "user-reported, not independently verified"
+        else:
+            verification = "unverified or unknown"
+        confidence = prov.get("confidence")
+        confidence_label = f", confidence {confidence:g}" if isinstance(confidence, (int, float)) else ""
+        lines.append(
+            f"[M{i}] ({hit.get('type') or 'memory'}, {verification}{confidence_label}) "
+            f"{hit['text'][:500]}"
+        )
     if reflect_answer:
         lines.append(f"\nHindsight reflect synthesis: {reflect_answer[:1500]}")
     return "\n".join(lines)
@@ -216,6 +227,8 @@ class AgentService:
                 "outcome": item.get("outcome", "Outcome not recorded"),
                 "previous_strategy": item.get("previousStrategy", "Strategy not recorded"),
                 "verified": item.get("verified") is True,
+                "source_type": item.get("sourceType", "unknown"),
+                "confidence": item.get("confidence"),
             }
             for item in historical_evidence[:6]
         ]

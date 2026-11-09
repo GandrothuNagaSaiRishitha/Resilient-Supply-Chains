@@ -165,6 +165,8 @@ def test_decision_report_recalls_and_reflects_once_in_authenticated_org(monkeypa
             "crisis_type": "Shipment Disruption",
             "successful": True,
             "verified": True,
+            "source_type": "verified_business_fact",
+            "confidence": 0.9,
             "strategy_key": "reroute",
             "event_date": "2026-10-01",
             "lessons_learned": "A previous port reroute reduced delay by three days.",
@@ -172,12 +174,20 @@ def test_decision_report_recalls_and_reflects_once_in_authenticated_org(monkeypa
     }
     recall = Mock(return_value={"results": [recalled_hit]})
     reflect = Mock(return_value={"text": "Prior rerouting reduced delay at higher freight cost."})
-    generated = _generated_recommendation(["memory-1"])
-    generate = Mock(return_value=generated)
+    model_payload = _generated_recommendation(["memory-1"])
+    model_call = Mock(
+        return_value=SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content=json.dumps(model_payload))
+                )
+            ]
+        )
+    )
     monkeypatch.setattr(decisions, "build_scenario", lambda *args: SCENARIO)
     monkeypatch.setattr(decisions.memory_service, "recall", recall)
     monkeypatch.setattr(decisions.memory_service, "reflect", reflect)
-    monkeypatch.setattr(AgentService, "generate_decision_recommendation", lambda self, **kwargs: generate(**kwargs))
+    monkeypatch.setattr(AgentService, "_call_model", lambda self, *args, **kwargs: model_call(*args, **kwargs))
 
     response = decisions.decision_recommendation(incident.id, context, db)
     report = response["data"]
@@ -187,8 +197,21 @@ def test_decision_report_recalls_and_reflects_once_in_authenticated_org(monkeypa
     reflect.assert_called_once()
     assert reflect.call_args.args[1] is context.organization
     assert "Northstar Components" in recall.call_args.kwargs["query"]
-    generate.assert_called_once()
-    assert generate.call_args.kwargs["historical_evidence"][0]["id"] == "memory-1"
+    assert "Shipment Disruption" in recall.call_args.kwargs["query"]
+    assert "control board" in recall.call_args.kwargs["query"]
+    assert "historical recovery outcomes successful and unsuccessful strategies lessons learned" in recall.call_args.kwargs["query"]
+    model_call.assert_called_once()
+    model_prompt = json.loads(model_call.call_args.args[0][1]["content"])
+    assert model_prompt["retrieved_memories"][0] == {
+        "id": "memory-1",
+        "text": "A previous port reroute reduced delay by three days.",
+        "outcome": "Successful",
+        "previous_strategy": "reroute",
+        "verified": True,
+        "source_type": "verified_business_fact",
+        "confidence": 0.9,
+    }
+    assert model_prompt["hindsight_reflection"] == "Prior rerouting reduced delay at higher freight cost."
     assert report["aiRecommendation"]["status"] == "generated"
     assert report["aiRecommendation"]["strategyKey"] == "reroute"
     assert report["historicalEvidence"][0]["outcome"] == "Successful"
@@ -289,6 +312,7 @@ def test_outcome_feedback_retains_success_and_failure(monkeypatch, successful):
     assert retain.call_args.args[1] is context.organization
     assert retain.call_args.kwargs["category"] == "outcome"
     assert retain.call_args.kwargs["source_type"] == "user_reported_fact"
+    assert retain.call_args.kwargs["confidence"] == 0.5
     assert retain.call_args.kwargs["metadata"]["successful"] is successful
     assert retain.call_args.kwargs["metadata"]["product_component"] == incident.product_component
     assert retain.call_args.kwargs["metadata"]["expected_delay_days"] == incident.expected_delay_days
