@@ -62,6 +62,8 @@ def _historical_evidence(hits: list[dict], incident: SupplyChainIncident) -> lis
                     or "No lesson text was returned."
                 ),
                 "verified": provenance.get("verified", metadata.get("verified")),
+                "sourceType": provenance.get("source_type", metadata.get("source_type")),
+                "confidence": provenance.get("confidence", metadata.get("confidence")),
             }
         )
     return evidence
@@ -156,21 +158,32 @@ def decision_recommendation(
         "scenarioImpact": scenario["summary"],
     }
     query = " ".join(
-        str(value)
-        for value in (
-            row.crisis_type,
-            row.title,
-            row.description,
-            supplier.name if supplier else None,
-            row.product_component,
-            row.origin,
-            row.destination,
-            f"expected delay {row.expected_delay_days} days" if row.expected_delay_days is not None else None,
-            f"available inventory {row.available_inventory_quantity}" if row.available_inventory_quantity is not None else None,
-            f"affected orders {row.affected_orders}" if row.affected_orders is not None else None,
-            row.urgency,
-        )
-        if value is not None and str(value).strip()
+        [
+            *(
+                str(value)
+                for value in (
+                    row.crisis_type,
+                    row.title,
+                    row.description,
+                    supplier.name if supplier else None,
+                    row.product_component,
+                    row.origin,
+                    row.destination,
+                    f"expected delay {row.expected_delay_days} days"
+                    if row.expected_delay_days is not None
+                    else None,
+                    f"available inventory {row.available_inventory_quantity}"
+                    if row.available_inventory_quantity is not None
+                    else None,
+                    f"affected orders {row.affected_orders}"
+                    if row.affected_orders is not None
+                    else None,
+                    row.urgency,
+                )
+                if value is not None and str(value).strip()
+            ),
+            "historical recovery outcomes successful and unsuccessful strategies lessons learned",
+        ]
     )
     hits: list[dict] = []
     memory_status = "empty"
@@ -292,6 +305,23 @@ def record_decision_action(
     if incident is None:
         raise HTTPException(status_code=404, detail="Incident not found")
 
+    if payload.request_id is not None:
+        existing = db.scalar(
+            select(ProcurementDecision).where(
+                ProcurementDecision.organization_id == ctx.organization.id,
+                ProcurementDecision.created_by == ctx.user.id,
+                ProcurementDecision.evidence["request_id"].astext == str(payload.request_id),
+            )
+        )
+        if existing is not None:
+            return {
+                "data": {
+                    "confirmationId": str(existing.id),
+                    "demo": False,
+                    "message": f"Decision '{existing.decision}' was already recorded.",
+                }
+            }
+
     decision = ProcurementDecision(
         organization_id=ctx.organization.id,
         question=f"Decision for incident {incident.incident_number}: {incident.title}",
@@ -303,6 +333,7 @@ def record_decision_action(
             "strategy_key": payload.strategy_key,
             "crisis_type": incident.crisis_type,
             "urgency": incident.urgency,
+            "request_id": str(payload.request_id) if payload.request_id else None,
         },
         created_by=ctx.user.id,
         status="proposed" if payload.action == "accepted" else "recorded",
@@ -424,7 +455,7 @@ def record_outcome_feedback(
             supplier_id=incident.supplier_id,
             order_id=incident.order_id,
             event_date=datetime.now(timezone.utc),
-            confidence=1.0,
+            confidence=0.5,
             metadata={
                 "crisis_type": incident.crisis_type,
                 "incident_title": incident.title,

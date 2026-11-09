@@ -16,6 +16,9 @@ export interface HistoricalIncidentMemory {
   outcome: MemoryOutcome
   lessonLearned: string
   demoRecord?: boolean
+  sourceType?: string | null
+  verified?: boolean | null
+  confidence?: number | null
 }
 
 export interface MemoryOverviewStats {

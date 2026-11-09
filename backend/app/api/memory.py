@@ -150,7 +150,15 @@ def reset(
         raise HTTPException(status_code=422, detail="Pass confirm=true to reset the bank")
     if not ctx.organization.is_demo:
         raise HTTPException(status_code=403, detail="Memory reset is only available for the demo organization")
-    memory_service.reset_bank(db, ctx.organization)
+    if ctx.user.role != "admin":
+        raise HTTPException(status_code=403, detail="An administrator role is required to reset demo memory")
+    try:
+        memory_service.reset_bank(db, ctx.organization)
+    except memory_service.HindsightUnavailable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Hindsight memory could not be reset. No local memory records were deleted.",
+        ) from exc
     audit(db, ctx.organization.id, ctx.user.id, "memory.reset", "memory_bank", None, {"demo_only": True})
     db.commit()
     return {"reset": True, "bank_id": ctx.organization.memory_bank_id}

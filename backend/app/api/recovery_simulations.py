@@ -76,20 +76,29 @@ def build_scenario(db: Session, org_id: uuid.UUID, row: SupplyChainIncident) -> 
     )
     base_cost = float(order.financial_impact) if order else 0.0
     affected_inventory = inventory_for_component(db, org_id, row.supplier_id, row.product_component)
-    if row.available_inventory_quantity is not None:
+    all_component_inventory = inventory_for_component(db, org_id, None, row.product_component)
+    inventory_matched = affected_inventory.status == "matched"
+    transferable_inventory_matched = all_component_inventory.status == "matched"
+    if not inventory_matched:
+        baseline_shortage = None
+    elif row.available_inventory_quantity is not None:
         baseline_shortage = sum(
             max(0, item.reorder_point - row.available_inventory_quantity)
-            for item in affected_inventory
+            for item in affected_inventory.items
         )
     else:
         baseline_shortage = sum(
             max(0, item.reorder_point - item.quantity_on_hand)
-            for item in affected_inventory
+            for item in affected_inventory.items
         )
-    transferable_units = sum(
-        item.quantity_on_hand - item.reorder_point
-        for item in inventory_for_component(db, org_id, None, row.product_component)
-        if item.supplier_id != row.supplier_id and item.quantity_on_hand > item.reorder_point
+    transferable_units = (
+        sum(
+            item.quantity_on_hand - item.reorder_point
+            for item in all_component_inventory.items
+            if item.supplier_id != row.supplier_id and item.quantity_on_hand > item.reorder_point
+        )
+        if transferable_inventory_matched
+        else None
     )
 
     strategies = []
@@ -137,15 +146,23 @@ def build_scenario(db: Session, org_id: uuid.UUID, row: SupplyChainIncident) -> 
         else:  # redistribute
             additional_cost = round(base_cost * 0.10, 2)
             delay = max(0, base_delay - 2)
-            shortage = max(0, baseline_shortage - transferable_units)
-            risk = _severity_label((supplier_score or 50) - 5)
-            feasible = "Conditional" if transferable_units else "Not feasible"
-            note = (
-                f"Up to {transferable_units} units are above reorder point at other suppliers; "
-                "transfer capacity and location are not recorded."
-                if transferable_units
-                else "No transferable surplus is recorded for this component."
+            shortage = (
+                max(0, baseline_shortage - transferable_units)
+                if baseline_shortage is not None and transferable_units is not None
+                else None
             )
+            risk = _severity_label((supplier_score or 50) - 5)
+            if transferable_units is None:
+                feasible = "Conditional"
+                note = f"Transfer feasibility is unknown. {all_component_inventory.detail}"
+            else:
+                feasible = "Conditional" if transferable_units else "Not feasible"
+                note = (
+                    f"Up to {transferable_units} units are above reorder point at other suppliers; "
+                    "transfer capacity and location are not recorded."
+                    if transferable_units
+                    else "No transferable surplus is recorded for this component."
+                )
             trade_off = "Low cost, depends on spare inventory at another site."
 
         strategies.append(
@@ -188,7 +205,9 @@ def build_scenario(db: Session, org_id: uuid.UUID, row: SupplyChainIncident) -> 
     return {
         "incident": _incident_row(row),
         "summary": summary,
-        "constraints": constraints,
+        "constraints": constraints + [
+            {"id": "inventoryMapping", "label": "Inventory match", "detail": affected_inventory.detail},
+        ],
         "strategies": strategies,
         "recommendedStrategyKey": recommended["key"],
         "recommendationExplanation": (

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import re
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -12,6 +15,13 @@ from sqlalchemy.orm import Session
 from ..models import InventoryItem, Organization, PurchaseOrder, ShipmentEvent, Supplier, SupplierComplaint
 from ..schemas import SupplierMetrics
 from ..services import metrics as metrics_service
+
+
+@dataclass(frozen=True)
+class InventoryLookup:
+    status: Literal["matched", "unmapped", "ambiguous"]
+    items: tuple[InventoryItem, ...]
+    detail: str
 
 
 def iso(value: datetime | None) -> str | None:
@@ -31,28 +41,56 @@ def inventory_for_component(
     organization_id: uuid.UUID,
     supplier_id: uuid.UUID | None,
     product_component: str,
-) -> list[InventoryItem]:
-    component_key = "".join(character.casefold() for character in product_component if character.isalnum())
-    if not component_key:
-        return []
-
+) -> InventoryLookup:
+    component = product_component.strip()
+    if not component:
+        return InventoryLookup("unmapped", (), "No product identifier was provided.")
     query = select(InventoryItem).where(InventoryItem.organization_id == organization_id)
     if supplier_id:
         query = query.where(InventoryItem.supplier_id == supplier_id)
-    items = db.scalars(query.order_by(InventoryItem.name).limit(2000)).all()
+    items = db.scalars(query.order_by(InventoryItem.name)).all()
 
-    def normalized(value: str | None) -> str:
-        return "".join(character.casefold() for character in (value or "") if character.isalnum())
+    def normalized(value: str) -> str:
+        return "".join(character.casefold() for character in value if character.isalnum())
 
-    return [
-        item
-        for item in items
-        if (sku := normalized(item.sku))
-        and len(sku) >= 3
-        and sku in component_key
-        or (name := normalized(item.name))
-        and (name in component_key or component_key in name)
-    ]
+    sku_matches = []
+    for item in items:
+        sku_parts = re.findall(r"[A-Za-z0-9]+", item.sku or "")
+        if not sku_parts:
+            continue
+        sku_pattern = (
+            r"(?<![A-Za-z0-9])"
+            + r"[^A-Za-z0-9]*".join(re.escape(part) for part in sku_parts)
+            + r"(?![A-Za-z0-9])"
+        )
+        if re.search(sku_pattern, component, flags=re.IGNORECASE):
+            sku_matches.append(item)
+
+    if sku_matches:
+        if len(sku_matches) == 1:
+            item = sku_matches[0]
+            return InventoryLookup("matched", (item,), f"Matched exact SKU {item.sku}.")
+        return InventoryLookup(
+            "ambiguous",
+            (),
+            "The supplied product description matches multiple inventory SKUs.",
+        )
+
+    name_key = normalized(component)
+    name_matches = [item for item in items if normalized(item.name) == name_key]
+    if len(name_matches) == 1:
+        return InventoryLookup("matched", (name_matches[0],), f"Matched exact product name {name_matches[0].name}.")
+    if len(name_matches) > 1:
+        return InventoryLookup(
+            "ambiguous",
+            (),
+            "The product name matches multiple inventory records; provide a SKU to disambiguate.",
+        )
+    return InventoryLookup(
+        "unmapped",
+        (),
+        "No inventory record matched the supplied SKU or exact product name.",
+    )
 
 
 def supplier_json(

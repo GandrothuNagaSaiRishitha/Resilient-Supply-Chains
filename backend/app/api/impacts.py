@@ -36,24 +36,26 @@ def _analysis(row: SupplyChainIncident, db: Session, org_id: uuid.UUID) -> dict:
         if row.supplier_id
         else None
     )
-    inventory = inventory_for_component(db, org_id, row.supplier_id, row.product_component)
-    shortage = sum(max(0, i.reorder_point - i.quantity_on_hand) for i in inventory)
+    inventory_lookup = inventory_for_component(db, org_id, row.supplier_id, row.product_component)
+    inventory = inventory_lookup.items
+    shortage = (
+        sum(max(0, i.reorder_point - i.quantity_on_hand) for i in inventory)
+        if inventory_lookup.status == "matched"
+        else None
+    )
     exposure = sum(o.financial_impact for o in orders)
     delay = row.expected_delay_days or 0
     products = [{"id":str(i.id),"product":i.name,"component":i.category,"supplier":supplier.name if supplier else "Unassigned",
         "shortage":max(0,i.reorder_point-i.quantity_on_hand),"severity":severity} for i in inventory]
-    if not products:
-        products = [{"id":str(row.id),"product":row.product_component,"component":row.product_component,
-            "supplier":supplier.name if supplier else "Unassigned","shortage":0,"severity":severity}]
     customers = [{"id":str(o.id),"customer":o.destination or "Unspecified destination","orderValue":o.financial_impact,
         "priority":_severity(o.priority.title()),"expectedDelayDays":delay} for o in orders]
     warehouses = [{"id":str(i.id),"warehouse":i.name,"location":"Location not recorded",
         "availableInventory":i.quantity_on_hand,"inventoryAtRisk":max(0,i.reorder_point-i.quantity_on_hand),
-        "coverageDays":0,"severity":severity} for i in inventory]
+        "coverageDays":None,"severity":severity} for i in inventory]
     counts = Counter([severity] * max(1, len(orders) + len(products)))
     return {"incident":_incident(row),"kpis":[
         {"id":"orders","label":"Open orders at risk","value":len(orders),"formattedValue":str(len(orders)),"severity":severity},
-        {"id":"inventory","label":"Units below reorder point","value":shortage,"formattedValue":str(shortage),"severity":severity},
+        {"id":"inventory","label":"Units below reorder point","value":shortage,"formattedValue":str(shortage) if shortage is not None else "Unavailable","severity":severity},
         {"id":"delay","label":"Expected delay","value":delay,"unit":"days","formattedValue":f"{delay} days","severity":severity},
         {"id":"financial","label":"Recorded order exposure","value":exposure,"unit":"currency","formattedValue":f"{exposure:,.2f}","severity":severity}],
         "affectedProducts":products,"warehouseImpacts":warehouses,"customerOrders":customers,
@@ -66,7 +68,8 @@ def _analysis(row: SupplyChainIncident, db: Session, org_id: uuid.UUID) -> dict:
         "assumptions":{"items":["Analysis uses records belonging to this organization only.",
             "Financial exposure sums the recorded financial_impact on linked open purchase orders; it is not a revenue forecast.",
             "The current schema has no warehouse-location or consumption-rate fields, so warehouse location and coverage days are not inferred.",
-            "When an order is linked, only that order is assessed; otherwise open orders are matched by supplier."]}}
+            "When an order is linked, only that order is assessed; otherwise open orders are matched by supplier.",
+            f"Inventory mapping: {inventory_lookup.detail}"]}}
 
 @router.get("/incidents")
 def impact_incidents(ctx: CurrentContext = Depends(get_current_context), db: Session = Depends(get_db)) -> dict:

@@ -156,7 +156,8 @@ def test_inventory_matcher_resolves_sku_inside_order_product_and_scopes_tenant()
 
     result = inventory_for_component(db, organization_id, supplier_id, "MCU-1000 microcontrollers")
 
-    assert result == [matching]
+    assert result.status == "matched"
+    assert result.items == (matching,)
     statement = db.scalars.call_args.args[0]
     assert organization_id in statement.compile().params.values()
     assert supplier_id in statement.compile().params.values()
