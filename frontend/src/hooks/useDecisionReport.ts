@@ -34,12 +34,16 @@ export function useDecisionReport() {
       .then(({ data }) => {
         if (active) {
           setIncidents(data)
-          setIncidentId((current) => (
-            requestedIncidentId && data.some((incident) => incident.id === requestedIncidentId)
-              ? requestedIncidentId
-              : current || data[0]?.id || ''
-          ))
-          if (data.length > 0) setLoadingReport(true)
+          setIncidentId((current) => requestedIncidentId && data.some((incident) => incident.id === requestedIncidentId)
+            ? requestedIncidentId
+            : current && data.some((incident) => incident.id === current)
+              ? current
+              : data[0]?.id || '')
+          setReport(null)
+          setAction(null)
+          setStrategyKey(null)
+          setLoadingReport(data.length > 0)
+          setError(false)
         }
       })
       .catch(() => { if (active) setError(true) })
@@ -125,6 +129,7 @@ export function useDecisionReport() {
     try {
       const { data } = await submitDecisionAction({
         incidentId: report.scenario.incident.id,
+        requestId: crypto.randomUUID(),
         action,
         strategyKey,
         explanation: explanation.trim(),

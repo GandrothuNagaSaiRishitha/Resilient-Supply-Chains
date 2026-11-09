@@ -8,7 +8,7 @@
 - `src/services/` owns data access. Each service selects mock or API behavior using `VITE_DATA_SOURCE`.
 - `src/hooks/` contains stateful page workflows; Decision Replay has a feature-local hook and types under `src/pages/DecisionReplay/`.
 - `src/App.tsx` defines routes. `Layout` provides the shared sidebar, navbar, and responsive content shell.
-- `src/services/api.ts` is the shared Axios client. It uses `VITE_API_BASE_URL`, a 15-second timeout, JSON accept headers, and normalizes Axios/backend errors to `ApiClientError`.
+- `src/services/api.ts` is the shared Axios client. It uses `VITE_API_BASE_URL`, a configurable general timeout (`VITE_API_TIMEOUT_MS`, default 15 seconds), JSON accept headers, and normalizes Axios/backend errors to `ApiClientError`. Memory requests use `VITE_MEMORY_API_TIMEOUT_MS` (default 180 seconds), and decision recommendations use `VITE_DECISION_API_TIMEOUT_MS` (default 600 seconds), because those workflows can wait on Hindsight and Groq.
 
 The shared response envelope is `ApiResponse<T>`:
 
@@ -43,10 +43,13 @@ Copy `.env.example` to `.env.local` and set:
 
 | Variable | Required | Meaning |
 |---|---:|---|
-| `VITE_DATA_SOURCE` | No | `mock` (default) or `api`. Any other value is rejected during app configuration. |
+| `VITE_DATA_SOURCE` | No | `api` (default) or explicitly opted-in `mock`. Any other value is rejected during app configuration. |
 | `VITE_API_BASE_URL` | In API mode | Backend origin/base path, for example `http://127.0.0.1:8000`. Never put credentials or API keys here. |
+| `VITE_API_TIMEOUT_MS` | No | General API and demo-login request timeout in milliseconds; default `15000`. |
+| `VITE_MEMORY_API_TIMEOUT_MS` | No | Hindsight-backed memory endpoint timeout in milliseconds; default `180000`. |
+| `VITE_DECISION_API_TIMEOUT_MS` | No | Decision recommendation timeout in milliseconds; default `600000`. |
 
-The Axios request timeout is currently fixed at 15 seconds. The API mode requires a non-empty base URL and will return a normalized configuration error if missing.
+The general Axios request timeout defaults to 15 seconds and can be configured with `VITE_API_TIMEOUT_MS`. Memory requests use the separately configurable `VITE_MEMORY_API_TIMEOUT_MS` and default to 180 seconds; decision recommendation requests use `VITE_DECISION_API_TIMEOUT_MS` and default to 600 seconds. The API mode requires a non-empty base URL and will return a normalized configuration error if missing.
 
 ## Service functions and backend contract
 
@@ -92,7 +95,10 @@ The feature types currently describe the response `data` structures. Some domain
 - `api` mode calls Axios and returns only the backend response. Network errors, HTTP errors, malformed configuration, and missing records reject through the shared normalized error path; services do not silently fall back to mock data.
 - Page hooks already expose loading/error states for dashboard, impact, recovery, memory, decision report, and decision replay. Crisis report options now have loading, empty supplier, and retry states. Empty table/list/chart states are present where data can be absent.
 - The browser calls the configured memory API; the backend uses the official Hindsight client for organization-scoped retain, recall, and reflect. The browser never connects directly to Hindsight.
+- Decision replay distinguishes Hindsight `available`, `empty`, and `unavailable` statuses. Without a recalled comparable strategy, the UI shows the baseline only and does not claim successful recall.
 - The navbar indicates whether the configured source is mock or API. In API mode, record provenance and real persistence still depend on the backend response and must not be inferred by the frontend.
+- Recovery scenarios expose `inventoryMapping`; `missing` or `ambiguous` mappings are reported by the backend instead of being silently represented as zero inventory.
+- Identical decision and outcome retries are deduplicated by the backend and return the already-persisted record ID.
 
 ## Integration steps
 
@@ -105,4 +111,4 @@ The feature types currently describe the response `data` structures. Some domain
 
 ## Features still using mock data by default
 
-When `VITE_DATA_SOURCE` is unset or `mock`, pages use their illustrative local datasets. In API mode, feature services call the backend endpoints above and reject normalized errors rather than silently falling back to mock responses.
+When `VITE_DATA_SOURCE` is explicitly `mock`, pages use their illustrative local datasets. When it is unset or `api`, feature services call the backend endpoints above and reject normalized errors rather than silently falling back to mock responses.

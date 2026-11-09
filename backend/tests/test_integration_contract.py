@@ -1,3 +1,4 @@
+from datetime import date
 import uuid
 
 import pytest
@@ -5,7 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 from pydantic import ValidationError
 
-from app.api import crises as crises_api
+from app.api import crises as crises_api, recovery_simulations as recovery_api
 from app.api.common import inventory_for_component
 from app.main import app
 from app.schemas_incidents import CrisisReportCreate, DecisionActionCreate, OutcomeFeedbackCreate
@@ -161,6 +162,34 @@ def test_inventory_matcher_resolves_sku_inside_order_product_and_scopes_tenant()
     statement = db.scalars.call_args.args[0]
     assert organization_id in statement.compile().params.values()
     assert supplier_id in statement.compile().params.values()
+
+
+def test_recovery_scenario_builds_with_unmatched_inventory(monkeypatch) -> None:
+    organization_id = uuid.uuid4()
+    incident = SimpleNamespace(
+        id=uuid.uuid4(),
+        organization_id=organization_id,
+        supplier_id=None,
+        order_id=None,
+        crisis_type="Inventory Shortage",
+        title="Unknown component shortage",
+        incident_date=date(2026, 11, 9),
+        created_at=None,
+        expected_delay_days=4,
+        available_inventory_quantity=None,
+        product_component="Unknown component",
+        urgency="High",
+    )
+    db = SimpleNamespace(
+        scalar=Mock(return_value=None),
+        scalars=Mock(return_value=SimpleNamespace(all=lambda: [])),
+    )
+    monkeypatch.setattr(recovery_api.metrics_service, "supplier_metrics_map", Mock(return_value={}))
+
+    scenario = recovery_api.build_scenario(db, organization_id, incident)
+
+    assert scenario["inventoryMapping"]["status"] == "missing"
+    assert len(scenario["strategies"]) == len(recovery_api.STRATEGIES)
 
 
 def test_rejected_decision_requires_null_strategy_key() -> None:

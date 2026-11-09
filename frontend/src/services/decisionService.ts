@@ -16,6 +16,7 @@ import type {
 
 const demoOutcomeRecords: OutcomeFeedbackRequest[] = []
 const pendingDecisionReports = new Map<string, Promise<DecisionReportResponse>>()
+const decisionReportTimeout = Number(import.meta.env.VITE_DECISION_API_TIMEOUT_MS) || 600_000
 
 export async function getDecisionIncidents(): Promise<DecisionIncidentsResponse> {
   if (isMockMode) return { data: simulationIncidents }
@@ -30,7 +31,9 @@ export async function getDecisionReport(
     const pending = pendingDecisionReports.get(incidentId)
     if (pending) return pending
     const request = api
-      .get<ApiResponse<DecisionReportResponse['data']>>(apiEndpoints.decisionReport(incidentId))
+      .get<ApiResponse<DecisionReportResponse['data']>>(apiEndpoints.decisionReport(incidentId), {
+        timeout: decisionReportTimeout,
+      })
       .then(({ data }) => data)
       .finally(() => pendingDecisionReports.delete(incidentId))
     pendingDecisionReports.set(incidentId, request)

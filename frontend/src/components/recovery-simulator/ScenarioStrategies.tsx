@@ -52,7 +52,7 @@ function StrategyCard({
       <div className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
         <CardMetric label="Additional cost" value={formatCurrency(strategy.additionalCost)} />
         <CardMetric label="Delivery delay" value={`${strategy.deliveryDelayDays} days`} />
-        <CardMetric label="Projected shortage" value={`${strategy.projectedShortageUnits.toLocaleString()} units`} />
+         <CardMetric label="Projected shortage" value={strategy.projectedShortageUnits == null ? 'Unavailable' : `${strategy.projectedShortageUnits.toLocaleString()} units`} />
         <div>
           <p className="text-[10px] font-medium text-slate-400">Risk level</p>
           <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${riskStyles[strategy.riskLevel]}`}>{strategy.riskLevel}</span>

@@ -205,18 +205,26 @@ Do not add a new integration based only on an assumption. First confirm whether 
 
 ## 13. Final Completion Checklist
 
-- [ ] Inventory matching is accurate and tested.
-- [ ] Outcome provenance is correct.
-- [ ] Historical memory is preserved.
-- [ ] AI recommendations handle slow responses safely.
-- [ ] Demo reset operations are protected.
-- [ ] Health endpoint errors are sanitized.
-- [ ] API mode does not rely on fabricated business data.
-- [ ] Organization-level data isolation is tested.
-- [ ] Backend tests pass.
-- [ ] Frontend lint and build pass.
-- [ ] End-to-end workflow passes.
-- [ ] Documentation matches the implementation.
-- [ ] Official hackathon requirements are verified.
+- [x] Inventory matching uses canonical, tenant- and supplier-scoped SKU/product resolution; exact, embedded, ambiguous, missing, similar-SKU, and isolation cases are tested.
+- [x] User-reported outcomes remain unverified, confidence is bounded, and AI context treats missing provenance as unknown; verified facts remain distinguishable.
+- [x] Memory reset requires an owner/admin, explicit confirmation, demo organization, and a server-only reset token; remote delete failures preserve local provenance.
+- [x] Decision recommendation retries are bounded, frontend timeout is configurable at 600 seconds, and identical decision/outcome retries are deduplicated.
+- [x] Health dependency errors are logged privately, sanitized in responses, and bounded by connection/request timeouts.
+- [x] API mode is the default; mock records require explicit `VITE_DATA_SOURCE=mock`.
+- [x] Backend organization/supplier isolation regression tests pass.
+- [x] Backend pytest suite passes (35 tests).
+- [x] Frontend lint, TypeScript build, and production build pass.
+- [x] Vite startup and Vite-to-FastAPI health proxy were verified; the previously reported `.vite-temp` EPERM did not reproduce.
+- [ ] Live PostgreSQL, Hindsight, Groq-backed report generation, and crisis-to-outcome E2E remain blocked because the services are unavailable in this host session.
+- [x] The seven frontend routes render in API mode and show retry/error or empty states instead of switching to mock business data when the backend cannot serve records.
+- [ ] Official event-specific hackathon requirements are not independently verified. `master_prompt.md` requires meaningful Band use, but no official event rubric or Band credentials were supplied; see the audit report.
+
+### Verification record (2026-11-09)
+
+- Release backend: FastAPI import and startup passed on test port `8011`; `/api/v1/health` and the Vite-proxied health request both returned a sanitized `degraded` response.
+- PostgreSQL (`127.0.0.1:5433`) and Hindsight (`127.0.0.1:8888`) were not reachable. The health response reported both unavailable. Groq was not configured.
+- The frontend returned HTTP content, built successfully, and rendered all seven routes in API mode. A live demo-login attempt returned HTTP 500 because PostgreSQL was unavailable; domain workflows therefore were not exercised against business data.
+- Vite `.vite-temp` existed with Modify access for the current user, and Vite started and served requests. The prior EPERM could not be reproduced, so its original process/file-lock cause remains undetermined.
+- No migration, database reset, Hindsight reset, or demo seeding was run. No secrets were printed or changed.
 
 **Important:** Make changes incrementally. Do not rewrite working modules unnecessarily. Report any unresolved issues, external provider limitations, or incomplete requirements rather than marking them as completed.

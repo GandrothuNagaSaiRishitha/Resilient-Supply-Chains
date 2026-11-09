@@ -93,20 +93,18 @@ def _memory_block(hits: list[dict], reflect_answer: str | None) -> str:
     lines = []
     for i, hit in enumerate(hits[:8], start=1):
         prov = hit.get("provenance") or {}
-        source_type = prov.get("source_type") or "unknown"
-        verified = prov.get("verified", False)
-        if verified is True:
+        metadata = hit.get("metadata") or {}
+        source_type = prov.get("source_type") or metadata.get("source_type") or "unknown"
+        verified = prov.get("verified", metadata.get("verified"))
+        confidence = prov.get("confidence", metadata.get("confidence"))
+        if verified is True or (isinstance(verified, str) and verified.lower() == "true"):
             verification = "verified"
         elif source_type == "user_reported_fact":
             verification = "user-reported, not independently verified"
         else:
             verification = "unverified or unknown"
-        confidence = prov.get("confidence")
         confidence_label = f", confidence {confidence:g}" if isinstance(confidence, (int, float)) else ""
-        lines.append(
-            f"[M{i}] ({hit.get('type') or 'memory'}, {verification}{confidence_label}) "
-            f"{hit['text'][:500]}"
-        )
+        lines.append(f"[M{i}] ({hit.get('type') or 'memory'}, {verification}{confidence_label}) {hit['text'][:500]}")
     if reflect_answer:
         lines.append(f"\nHindsight reflect synthesis: {reflect_answer[:1500]}")
     return "\n".join(lines)
@@ -144,7 +142,11 @@ class AgentService:
         if not settings.groq_api_key:
             raise AgentUnavailable("GROQ_API_KEY is not configured")
         if self.client is None:
-            self.client = Groq(api_key=settings.groq_api_key, timeout=settings.groq_timeout_seconds)
+            self.client = Groq(
+                api_key=settings.groq_api_key,
+                timeout=settings.groq_timeout_seconds,
+                max_retries=0,
+            )
         return self.client
 
     # ------------------------------------------------------------------
@@ -227,7 +229,7 @@ class AgentService:
                 "outcome": item.get("outcome", "Outcome not recorded"),
                 "previous_strategy": item.get("previousStrategy", "Strategy not recorded"),
                 "verified": item.get("verified") is True,
-                "source_type": item.get("sourceType", "unknown"),
+                "source_type": item.get("sourceType"),
                 "confidence": item.get("confidence"),
             }
             for item in historical_evidence[:6]
@@ -265,6 +267,7 @@ class AgentService:
             self.model,
             max_tokens=1200,
             response_format={"type": "json_object"},
+            max_attempts=1,
         )
         content = response.choices[0].message.content or ""
         try:
@@ -296,10 +299,12 @@ class AgentService:
         model: str,
         max_tokens: int = 1400,
         response_format: dict[str, str] | None = None,
+        max_attempts: int | None = None,
     ) -> Any:
         client = self._client()
         last_exc: Exception | None = None
-        for attempt in range(settings.agent_max_retries):
+        attempts = settings.agent_max_retries if max_attempts is None else max_attempts
+        for attempt in range(attempts):
             try:
                 request = dict(
                     model=model,
@@ -317,6 +322,8 @@ class AgentService:
                 last_exc = exc
                 status = getattr(exc, "status_code", None)
                 if status == 429:
+                    if attempt + 1 >= attempts:
+                        break
                     wait = 8 * (attempt + 1)
                     try:
                         retry_after = float(getattr(exc, "response", None).headers.get("retry-after", 0))
@@ -327,6 +334,8 @@ class AgentService:
                     time.sleep(wait)
                     continue
                 if status and 500 <= status < 600:
+                    if attempt + 1 >= attempts:
+                        break
                     time.sleep(2 * (attempt + 1))
                     continue
                 # Tool-generation errors are recoverable: ask the model to retry.
@@ -341,6 +350,7 @@ class AgentService:
                 self.fallback,
                 max_tokens=max_tokens,
                 response_format=response_format,
+                max_attempts=max_attempts,
             )
         raise AgentUnavailable(f"Groq request failed: {last_exc}")
 

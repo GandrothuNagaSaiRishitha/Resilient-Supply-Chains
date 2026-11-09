@@ -16,9 +16,11 @@ import type {
   MemorySearchResponse,
 } from '../types/memory'
 
+const memoryRequestTimeout = Number(import.meta.env.VITE_MEMORY_API_TIMEOUT_MS) || 180_000
+
 export async function getMemoryCentreData(): Promise<MemoryCentreResponse> {
   if (!isMockMode) {
-    const { data } = await api.get<ApiResponse<MemoryCentreResponse['data']>>(apiEndpoints.memoryOverview)
+    const { data } = await api.get<ApiResponse<MemoryCentreResponse['data']>>(apiEndpoints.memoryOverview, { timeout: memoryRequestTimeout })
     return data
   }
   const suppliers = [...new Set(memoryRecords.map((memory) => memory.supplier))].sort()
@@ -42,7 +44,7 @@ export async function searchMemories(
     const params = Object.fromEntries(
       Object.entries(filters).filter(([, value]) => value !== ''),
     )
-    const { data } = await api.get<ApiResponse<MemorySearchResponse['data']>>(apiEndpoints.memorySearch, { params })
+    const { data } = await api.get<ApiResponse<MemorySearchResponse['data']>>(apiEndpoints.memorySearch, { params, timeout: memoryRequestTimeout })
     return data
   }
   const data = memoryRecords.filter((memory) => {
@@ -61,7 +63,7 @@ export async function getMemoryDetail(
   memoryId: string,
 ): Promise<MemoryDetailResponse> {
   if (!isMockMode) {
-    const { data } = await api.get<ApiResponse<MemoryDetailResponse['data']>>(apiEndpoints.memoryDetail(memoryId))
+    const { data } = await api.get<ApiResponse<MemoryDetailResponse['data']>>(apiEndpoints.memoryDetail(memoryId), { timeout: memoryRequestTimeout })
     return data
   }
   const memory = memoryRecords.find(({ id }) => id === memoryId)

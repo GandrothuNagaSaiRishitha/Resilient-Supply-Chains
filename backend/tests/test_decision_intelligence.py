@@ -87,10 +87,11 @@ def test_structured_groq_recommendation_uses_incident_memory_and_reflection(monk
     }
     captured = {}
 
-    def fake_call(messages, tools, model, max_tokens=1400, response_format=None):
+    def fake_call(messages, tools, model, max_tokens=1400, response_format=None, max_attempts=None):
         captured["messages"] = messages
         captured["tools"] = tools
         captured["response_format"] = response_format
+        captured["max_attempts"] = max_attempts
         payload = {
             "strategy_key": "reroute",
             "rationale": "A prior reroute reduced delay, and the current scenario supports the same option.",
@@ -113,6 +114,7 @@ def test_structured_groq_recommendation_uses_incident_memory_and_reflection(monk
     assert result["evidence_ids"] == ["memory-1"]
     assert captured["tools"] == []
     assert captured["response_format"] == {"type": "json_object"}
+    assert captured["max_attempts"] == 1
     prompt = captured["messages"][1]["content"]
     prompt_payload = json.loads(prompt)
     assert "Northstar Components" in prompt

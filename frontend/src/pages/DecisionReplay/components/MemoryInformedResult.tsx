@@ -5,7 +5,23 @@ import { SectionHeading } from './ReplayPrimitives'
 import { isMockMode } from '../../../services/apiConfig'
 
 export default function MemoryInformedResult({ record }: { record: DecisionReplayRecord }) {
-  const strategy = strategyForKey(record.scenario, record.memoryInformedStrategyKey)
+  const memoryStatus = record.memoryStatus ?? (isMockMode ? 'available' : 'unavailable')
+  const strategy = memoryStatus === 'available' && record.memoryInformedStrategyKey
+    ? strategyForKey(record.scenario, record.memoryInformedStrategyKey)
+    : null
+  if (!strategy) {
+    const message = memoryStatus === 'unavailable'
+      ? 'Hindsight is unavailable; no memory-informed replay was generated.'
+      : memoryStatus === 'empty'
+        ? 'Hindsight returned no relevant memories; no memory-informed replay was generated.'
+        : 'Hindsight returned evidence, but no comparable recovery strategy was identified.'
+    return (
+      <section role="status" className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5 text-sm text-amber-900 shadow-sm">
+        <h2 className="font-semibold">Memory-informed replay unavailable</h2>
+        <p className="mt-2 text-xs leading-5">{message}</p>
+      </section>
+    )
+  }
   return (
     <section className="overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm shadow-blue-900/5">
       <SectionHeading icon={<Brain size={17} />} title="Memory-informed replay" subtitle={isMockMode ? 'Fixed illustrative result after considering the synthetic examples listed below.' : 'Memory-informed result returned by the configured backend API.'} />
@@ -16,7 +32,7 @@ export default function MemoryInformedResult({ record }: { record: DecisionRepla
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Metric label="Estimated additional cost" value={formatCurrency(strategy.additionalCost)} icon={<CircleDollarSign size={14} />} />
           <Metric label="Expected delivery delay" value={`${strategy.deliveryDelayDays} days`} icon={<Clock3 size={14} />} />
-          <Metric label="Projected shortage" value={`${strategy.projectedShortageUnits.toLocaleString()} units`} icon={<ShieldAlert size={14} />} />
+           <Metric label="Projected shortage" value={strategy.projectedShortageUnits == null ? 'Unavailable' : `${strategy.projectedShortageUnits.toLocaleString()} units`} icon={<ShieldAlert size={14} />} />
           <Metric label="Risk level" value={strategy.riskLevel} icon={<ShieldAlert size={14} />} />
         </div>
         <p className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3 text-[11px] leading-5 text-slate-700">{strategy.tradeOff}</p>

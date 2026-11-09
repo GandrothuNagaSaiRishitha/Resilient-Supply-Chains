@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..deps import CurrentContext, get_current_context
 from ..models import PurchaseOrder, Supplier, SupplyChainIncident
-from .common import inventory_for_component
+from .common import resolve_inventory_for_component
 
 router = APIRouter(prefix="/impacts", tags=["impact-analysis"])
 
@@ -36,13 +36,9 @@ def _analysis(row: SupplyChainIncident, db: Session, org_id: uuid.UUID) -> dict:
         if row.supplier_id
         else None
     )
-    inventory_lookup = inventory_for_component(db, org_id, row.supplier_id, row.product_component)
-    inventory = inventory_lookup.items
-    shortage = (
-        sum(max(0, i.reorder_point - i.quantity_on_hand) for i in inventory)
-        if inventory_lookup.status == "matched"
-        else None
-    )
+    inventory_match = resolve_inventory_for_component(db, org_id, row.supplier_id, row.product_component)
+    inventory = inventory_match.items
+    shortage = sum(max(0, i.reorder_point - i.quantity_on_hand) for i in inventory) if inventory_match.status == "matched" else None
     exposure = sum(o.financial_impact for o in orders)
     delay = row.expected_delay_days or 0
     products = [{"id":str(i.id),"product":i.name,"component":i.category,"supplier":supplier.name if supplier else "Unassigned",
@@ -51,11 +47,11 @@ def _analysis(row: SupplyChainIncident, db: Session, org_id: uuid.UUID) -> dict:
         "priority":_severity(o.priority.title()),"expectedDelayDays":delay} for o in orders]
     warehouses = [{"id":str(i.id),"warehouse":i.name,"location":"Location not recorded",
         "availableInventory":i.quantity_on_hand,"inventoryAtRisk":max(0,i.reorder_point-i.quantity_on_hand),
-        "coverageDays":None,"severity":severity} for i in inventory]
+        "coverageDays":0,"severity":severity} for i in inventory]
     counts = Counter([severity] * max(1, len(orders) + len(products)))
     return {"incident":_incident(row),"kpis":[
         {"id":"orders","label":"Open orders at risk","value":len(orders),"formattedValue":str(len(orders)),"severity":severity},
-        {"id":"inventory","label":"Units below reorder point","value":shortage,"formattedValue":str(shortage) if shortage is not None else "Unavailable","severity":severity},
+        {"id":"inventory","label":"Units below reorder point","value":shortage,"formattedValue":str(shortage),"severity":severity},
         {"id":"delay","label":"Expected delay","value":delay,"unit":"days","formattedValue":f"{delay} days","severity":severity},
         {"id":"financial","label":"Recorded order exposure","value":exposure,"unit":"currency","formattedValue":f"{exposure:,.2f}","severity":severity}],
         "affectedProducts":products,"warehouseImpacts":warehouses,"customerOrders":customers,
@@ -65,11 +61,14 @@ def _analysis(row: SupplyChainIncident, db: Session, org_id: uuid.UUID) -> dict:
         "severityIndicators":[{"severity":level,"count":counts.get(level,0),
             "description":f"{counts.get(level,0)} linked records assessed at {level.lower()} severity"}
             for level in ["Critical","High","Medium","Low"]],
+        "inventoryMapping":{"status":inventory_match.status,"reason":inventory_match.reason,
+            "matchedSku":inventory_match.matched_sku},
         "assumptions":{"items":["Analysis uses records belonging to this organization only.",
             "Financial exposure sums the recorded financial_impact on linked open purchase orders; it is not a revenue forecast.",
             "The current schema has no warehouse-location or consumption-rate fields, so warehouse location and coverage days are not inferred.",
             "When an order is linked, only that order is assessed; otherwise open orders are matched by supplier.",
-            f"Inventory mapping: {inventory_lookup.detail}"]}}
+            f"Inventory mapping: {inventory_match.reason}",
+            "Inventory quantities are omitted when no unique canonical product/SKU mapping is available."]}}
 
 @router.get("/incidents")
 def impact_incidents(ctx: CurrentContext = Depends(get_current_context), db: Session = Depends(get_db)) -> dict:

@@ -29,7 +29,8 @@ export interface DecisionReplayRecord {
   originalStrategyKey: RecoveryStrategyKey
   actualOutcome: ReplayActualOutcome
   memoryFreeStrategyKey: RecoveryStrategyKey
-  memoryInformedStrategyKey: RecoveryStrategyKey
+  memoryInformedStrategyKey: RecoveryStrategyKey | null
+  memoryStatus?: 'available' | 'empty' | 'unavailable'
   historicalEvidence: ReplayHistoricalEvidence[]
   evidenceExplanation: string
   comparisonExplanation: string
@@ -41,5 +42,6 @@ export type DecisionReplayResponse = ApiResponse<DecisionReplayRecord>
 export type ReplayActionResponse = ApiResponse<{
   incidentId: string
   replayed: boolean
+  memoryStatus?: 'available' | 'empty' | 'unavailable'
   message: string
 }>

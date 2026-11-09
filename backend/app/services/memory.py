@@ -31,8 +31,20 @@ class HindsightUnavailable(RuntimeError):
     pass
 
 
-def _client() -> Hindsight:
-    return Hindsight(base_url=settings.hindsight_base_url, timeout=settings.hindsight_timeout_seconds)
+def provenance_for_source(source_type: str, confidence: float) -> tuple[bool, float]:
+    """Return safe verification metadata for a retained memory."""
+    is_verified = source_type == "verified_business_fact"
+    effective_confidence = min(max(float(confidence), 0.0), 1.0)
+    if not is_verified:
+        effective_confidence = min(effective_confidence, 0.8)
+    return is_verified, effective_confidence
+
+
+def _client(*, timeout: float | None = None) -> Hindsight:
+    return Hindsight(
+        base_url=settings.hindsight_base_url,
+        timeout=timeout or settings.hindsight_timeout_seconds,
+    )
 
 
 def _close_client(client: Hindsight | None) -> None:
@@ -178,13 +190,14 @@ def retain(
     """Retain a meaningful, validated business experience in Hindsight."""
     bank = bank_for(organization, bank_id)
     document_id = document_id or str(uuid.uuid4())
+    verified, confidence = provenance_for_source(source_type, confidence)
     meta = {
         **(metadata or {}),
         "company_id": str(organization.id),
         "bank_id": bank,
         "memory_category": category,
         "source_type": source_type,
-        "verified": source_type == "verified_business_fact",
+        "verified": verified,
         "confidence": confidence,
         "supplier_id": str(supplier_id) if supplier_id else None,
         "order_id": str(order_id) if order_id else None,
@@ -213,7 +226,7 @@ def retain(
                 last_exc = exc
                 text = str(exc).lower()
                 transient = any(token in text for token in ("429", "500", "502", "503", "quota", "timeout"))
-                if attempt == 0 and transient:
+                if retry_transient and attempt == 0 and transient:
                     time.sleep(4.0)
                     continue
                 raise
@@ -227,7 +240,7 @@ def retain(
                 category=category,
                 content=content,
                 source_type=source_type,
-                verified=source_type == "verified_business_fact",
+                verified=verified,
                 confidence=confidence,
                 supplier_id=supplier_id,
                 order_id=order_id,
@@ -248,7 +261,7 @@ def retain(
             supplier_id=supplier_id,
             order_id=order_id,
             source_type=source_type,
-            verified=source_type == "verified_business_fact" if record is None else record.verified,
+            verified=verified if record is None else record.verified,
             latency_ms=latency,
             detail={"document_id": document_id, "category": category, "hindsight_result": str(result)[:1000]},
         )
@@ -273,7 +286,7 @@ def retain(
             supplier_id=supplier_id,
             order_id=order_id,
             source_type=source_type,
-            verified=source_type == "verified_business_fact",
+            verified=verified,
             latency_ms=latency,
             error=str(exc),
         )
@@ -411,6 +424,7 @@ def reflect(
     supplier_id: uuid.UUID | None = None,
     order_id: uuid.UUID | None = None,
     bank_id: str | None = None,
+    retry_transient: bool = True,
 ) -> dict:
     bank = bank_for(organization, bank_id)
     started = time.perf_counter()
@@ -420,7 +434,7 @@ def reflect(
         client = _client()
         answer = None
         last_exc: Exception | None = None
-        for attempt in range(2):
+        for attempt in range(2 if retry_transient else 1):
             try:
                 answer = client.reflect(
                     bank_id=bank,
@@ -600,11 +614,16 @@ def reset_bank(db: Session, organization: Organization, bank_id: str | None = No
     try:
         client.delete_bank(bank)
     except Exception as exc:  # noqa: BLE001
-        logger.exception("failed to delete Hindsight bank %s", bank)
-        raise HindsightUnavailable("Hindsight bank reset failed") from exc
+        if _status_code(exc) != 404:
+            logger.exception("Hindsight bank reset failed for organization %s", organization.id)
+            raise HindsightUnavailable("Hindsight bank reset failed") from exc
     finally:
         _close_client(client)
-    ensure_bank(organization, bank)
+    try:
+        ensure_bank(organization, bank)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Hindsight bank recreation failed for organization %s", organization.id)
+        raise HindsightUnavailable("Hindsight bank recreation failed") from exc
     for row in db.scalars(
         select(MemoryRecord).where(
             MemoryRecord.organization_id == organization.id,

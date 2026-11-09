@@ -23,7 +23,7 @@ export async function getAccessToken(): Promise<string> {
     pendingTokenRequest = axios
       .post<DemoLoginResponse>(apiEndpoints.demoLogin, undefined, {
         baseURL,
-        timeout: 60_000,
+        timeout: Number(import.meta.env.VITE_API_TIMEOUT_MS) || 15_000,
         headers: { Accept: 'application/json' },
       })
       .then(({ data }) => {

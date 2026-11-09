@@ -87,7 +87,8 @@ def replay_record(
     if original_key not in strategy_keys:
         original_key = scenario["recommendedStrategyKey"]
     evidence = []
-    memory_informed_key = scenario["recommendedStrategyKey"]
+    memory_informed_key = None
+    memory_status = "unavailable"
     try:
         recalled = memory_service.recall(
             db,
@@ -96,10 +97,11 @@ def replay_record(
             max_tokens=2000,
             budget="mid",
         )
+        memory_status = "available" if recalled["results"] else "empty"
         for hit in recalled["results"][:6]:
             provenance = hit.get("provenance") or {}
             strategy = provenance.get("strategy_key")
-            if strategy in strategy_keys:
+            if strategy in strategy_keys and memory_informed_key is None:
                 memory_informed_key = strategy
             evidence.append({
                 "id": hit.get("document_id") or hit.get("id") or str(uuid.uuid4()),
@@ -111,6 +113,22 @@ def replay_record(
             })
     except memory_service.HindsightUnavailable as exc:
         logger.warning("Hindsight replay recall unavailable for incident %s: %s", incident_id, exc)
+    if memory_status == "unavailable":
+        evidence_explanation = "Hindsight is unavailable; historical evidence could not be retrieved."
+        comparison_explanation = "No memory-informed comparison is available because Hindsight could not be reached."
+    elif memory_status == "empty":
+        evidence_explanation = "Hindsight returned no relevant memories for this incident."
+        comparison_explanation = "No memory-informed comparison is available because Hindsight returned no relevant memories."
+    elif memory_informed_key is None:
+        evidence_explanation = f"{len(evidence)} Hindsight memories were retrieved, but none identified a comparable recovery strategy."
+        comparison_explanation = "Historical memories were retrieved, but none contained a comparable recovery strategy."
+    else:
+        evidence_explanation = f"{len(evidence)} Hindsight memories were retrieved for this organization."
+        comparison_explanation = (
+            "Hindsight evidence changed the strategy used for comparison."
+            if memory_informed_key != scenario["recommendedStrategyKey"] else
+            "The memory-informed strategy matches the baseline recommendation."
+        )
     return {
         "data": {
             "incident": {
@@ -132,13 +150,10 @@ def replay_record(
             },
             "memoryFreeStrategyKey": scenario["recommendedStrategyKey"],
             "memoryInformedStrategyKey": memory_informed_key,
+            "memoryStatus": memory_status,
             "historicalEvidence": evidence,
-            "evidenceExplanation": f"{len(evidence)} Hindsight memories were retrieved for this organization.",
-            "comparisonExplanation": (
-                "Hindsight evidence changed the strategy used for comparison."
-                if memory_informed_key != scenario["recommendedStrategyKey"] else
-                "The memory-informed strategy matches the baseline recommendation."
-            ),
+            "evidenceExplanation": evidence_explanation,
+            "comparisonExplanation": comparison_explanation,
             "scenario": scenario,
         }
     }
@@ -162,7 +177,7 @@ def run_replay(
     # Memory-informed strategy from organization-scoped Hindsight recall.
     memory_informed_key = None
     memory_informed_explanation = ""
-    historical_evidence = []
+    memory_status = "unavailable"
     try:
         recalled = memory_service.recall(
             db,
@@ -171,14 +186,16 @@ def run_replay(
             max_tokens=2000,
             budget="mid",
         )
+        memory_status = "available" if recalled["results"] else "empty"
         if recalled["results"]:
             evidence = recalled["results"][0]
             memory_informed_key = (evidence.get("provenance") or {}).get("strategy_key")
             if memory_informed_key not in {s["key"] for s in build_scenario(db, ctx.organization.id, row)["strategies"]}:
                 memory_informed_key = None
-            historical_evidence = recalled["results"]
             memory_informed_explanation = (
                 f"Hindsight returned {len(recalled['results'])} retained experiences for comparison."
+                if memory_informed_key is not None else
+                f"Hindsight returned {len(recalled['results'])} retained experiences, but none identified a comparable recovery strategy."
             )
     except memory_service.HindsightUnavailable as exc:
         logger.warning("Hindsight replay recall unavailable for incident %s: %s", incident_id, exc)
@@ -193,7 +210,11 @@ def run_replay(
         "replay.run",
         "decision_replay",
         str(incident_id),
-        {"memory_free_key": memory_free_key, "memory_informed_key": memory_informed_key},
+        {
+            "memory_free_key": memory_free_key,
+            "memory_informed_key": memory_informed_key,
+            "memory_status": memory_status,
+        },
     )
     db.commit()
 
@@ -201,9 +222,14 @@ def run_replay(
         "data": {
             "incidentId": str(incident_id),
             "replayed": True,
+            "memoryStatus": memory_status,
             "message": (
-                f"Replay completed using {len(historical_evidence)} Hindsight memories. "
-                "The original decision is unchanged."
-            ),
+                memory_informed_explanation
+                or (
+                    "Replay baseline completed; Hindsight is unavailable, so no memory-informed comparison was performed."
+                    if memory_status == "unavailable" else
+                    "Replay baseline completed; Hindsight returned no relevant memories, so no memory-informed comparison was performed."
+                )
+            ) + " The original decision is unchanged.",
         }
     }

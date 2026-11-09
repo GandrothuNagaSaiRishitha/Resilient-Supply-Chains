@@ -2,7 +2,7 @@
 
 **Resilient Supply Chains** (the backend's application name is **SUPPLYMIND**) is a supply-chain operations and decision-support application. It helps procurement and operations teams see disruption risk, record incidents, compare recovery options, and reuse verified experience from prior supplier and logistics outcomes.
 
-> **Project status:** The React frontend and FastAPI backend are integrated on `master`. Operational estimates are decision support, not automated execution or guaranteed forecasts. The AI chat API is implemented in the backend, but there is currently no AI-agent page in the frontend.
+> **Project status:** The release worktree contains the integrated React frontend and FastAPI backend. Backend tests and frontend lint/build pass; live business workflows still require reachable PostgreSQL and Hindsight services and a configured Groq key. Operational estimates are decision support, not automated execution or guaranteed forecasts. The AI chat API is implemented in the backend, but there is currently no AI-agent page in the frontend.
 
 ## Contents
 
@@ -320,7 +320,7 @@ These are also implemented, organization-scoped APIs. They return their resource
 | `GET /api/v1/memory/overview`; `GET /api/v1/memory/records?limit=...`; `GET /api/v1/memory/history?limit=...` | Bearer | Inspect Hindsight operation metrics, local provenance records, and operation history. |
 | `POST /api/v1/memory/retain` | Bearer | Retain a memory with content, category, source type, optional supplier/order references, event date, and confidence. Verified business facts must reference an in-organization supplier or order. |
 | `POST /api/v1/memory/recall`; `POST /api/v1/memory/reflect` | Bearer | Query Hindsight; recall takes query/types/token budget, reflect takes query/context/budget. |
-| `POST /api/v1/memory/reset?confirm=true` | Bearer; demo org only | Reset the demo memory bank. This destructive endpoint is restricted to the demo organization and requires explicit confirmation. |
+| `POST /api/v1/memory/reset?confirm=true` | Owner/admin bearer; demo org only | Reset the demo memory bank only when the server has `DEMO_MEMORY_RESET_TOKEN` configured and the matching `X-Demo-Memory-Reset-Token` header is supplied. Reset is disabled otherwise. |
 | `GET /api/v1/lab/rubric`; `GET /api/v1/lab/experiments`; `GET /api/v1/lab/summary?experiment_id=...` | Rubric is public; others Bearer | Inspect the Memory Learning Lab rubric, experiments, and summary. |
 | `POST /api/v1/lab/experiment/new`; `POST /api/v1/lab/stage` | Bearer | Start a lab experiment or run a validated experiment stage. |
 
@@ -444,12 +444,14 @@ The backend settings are loaded from a root-level `.env` file and/or environment
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | SQLAlchemy PostgreSQL URL; default points at local PostgreSQL port 5433 and database `supplymind`. |
+| `DATABASE_CONNECT_TIMEOUT_SECONDS` | PostgreSQL connection timeout; default is 5 seconds. |
 | `JWT_SECRET` | Signing secret for access tokens; replace the development default before any shared or deployed use. |
 | `CORS_ORIGINS` | Comma-separated allowed browser origins when the frontend is not using the Vite proxy. |
 | `GROQ_API_KEY` | Enables the Groq-backed agent and may be used by the local Hindsight helper. |
 | `GROQ_MODEL`, `GROQ_FALLBACK_MODEL` | Primary and fallback model names. |
 | `HINDSIGHT_BASE_URL` | Hindsight API base URL; defaults to `http://localhost:8888`. |
 | `HINDSIGHT_TIMEOUT_SECONDS`, `HINDSIGHT_TOP_K`, `HINDSIGHT_BUDGET` | Hindsight request settings. |
+| `DEMO_MEMORY_RESET_TOKEN` | Optional server-only token required in addition to owner/admin authorization and `confirm=true` for the destructive demo memory reset route. When unset, reset is disabled. |
 | `APP_ENV`, `API_PREFIX` | Environment label and conventional API prefix; default prefix is `/api/v1`. |
 | `SCHEDULER_ENABLED`, `SCHEDULER_INTERVAL_SECONDS` | Enable and tune periodic monitoring. |
 | `SEED_DEMO_ON_STARTUP` | Optionally seed synthetic demo records at backend startup; defaults to disabled. |
@@ -530,7 +532,7 @@ npm run dev
 
 Set `VITE_DATA_SOURCE=api` in `frontend/.env.local` to use the backend. `frontend/.env.example` already selects API mode and provides the local API base URL. During Vite development requests are proxied to `VITE_API_BASE_URL` (default target `http://127.0.0.1:8000`). The app opens at the Vite URL, typically `http://localhost:5173`.
 
-For production builds, configure `VITE_API_BASE_URL` to the deployed API origin and set backend `CORS_ORIGINS` to the frontend origin. `VITE_DATA_SOURCE` defaults to `mock` when unset; mock data is illustrative and does not create backend records.
+For production builds, configure `VITE_API_BASE_URL` to the deployed API origin and set backend `CORS_ORIGINS` to the frontend origin. `VITE_DATA_SOURCE` defaults to `api` when unset; set `VITE_DATA_SOURCE=mock` explicitly to use illustrative data, which does not create backend records.
 
 ## Testing and verification
 
@@ -575,12 +577,15 @@ npm run build
 
 | Check | Result |
 |---|---|
-| Backend pytest suite | **Passed: 20 tests.** Includes decision generation validation, tenant-scoped recall, outage handling, outcome retention, and crisis contract tests; it is not a substitute for a full browser E2E suite. |
+| Backend import and startup | **Passed.** FastAPI imported and started on isolated test port 8011 with startup seeding and scheduler disabled. |
+| Backend pytest suite | **Passed: 35 tests.** The release venv needed the declared pytest dev tools, which were installed into that venv only. |
 | Frontend lint (`npm run lint`) | **Passed.** |
-| Frontend production build (`npm run build`) | **Passed**, including TypeScript build. |
-| Alembic migration | **Passed**; database reported `f2c9160d14ab (head)`. |
-| Authenticated API smoke workflow | **Manually verified** against the configured database for demo login, dashboard, crisis creation, impact, recovery scenario/confirmation, decision/action/outcome, replay, and memory overview/search/detail. |
-| Browser workflow | **Manually verified** for dashboard data, frontend crisis submission, and impact analysis. |
+| Frontend production build (`npm run build`) | **Passed**, including TypeScript; Vite reports a non-failing large-chunk advisory. |
+| Vite development startup | **Passed** on port 5179. `.vite-temp` had Modify access and startup succeeded; the earlier EPERM was not reproducible. |
+| Vite-to-FastAPI network proxy | **Passed.** `/api/v1/health` through Vite returned the same sanitized JSON health response as the backend. |
+| Dependency health | **Degraded, accurately reported.** PostgreSQL at `127.0.0.1:5433` and Hindsight at `127.0.0.1:8888` were unreachable; Groq was not configured. |
+| Browser route smoke | **All seven pages rendered in API mode** and showed retry/error or empty states without switching to mock records. Dashboard showed the actual demo-login failure from unavailable PostgreSQL. |
+| Full business workflow | **Blocked.** Without PostgreSQL, Hindsight, and Groq, no real incident-to-outcome workflow or decision generation could be tested. No database or memory reset was run. |
 
 No automated browser E2E suite is configured in `frontend/package.json`. Live Hindsight and PostgreSQL are required for the manual integration flow.
 
@@ -647,7 +652,8 @@ Local PostgreSQL data, service logs, virtual environments, node modules, and sec
 - **Source data gaps:** Warehouse locations, capacity, consumption rates, and customer entities are not modeled for these workflows. Some impact fields are explicitly assumptions/proxies.
 - **Memory filters:** Memory Centre search recalls a bounded set and then applies filters; it has no pagination or complete-bank export. Insight cards are currently empty.
 - **External dependencies:** Hindsight must be deployed separately. The backend agent requires Groq configuration. A missing/unavailable Hindsight service limits memory features; health reports degraded status.
-- **Automated coverage:** The backend suite contains 20 tests and the live workflow was manually smoke-tested; a repeatable automated API/browser E2E suite would improve regression coverage.
+- **Automated coverage:** The backend suite currently contains 35 passing tests. A repeatable automated API/browser end-to-end suite would improve regression coverage; the complete business workflow remains unverified in this host because PostgreSQL, Hindsight, and Groq are unavailable.
+- **Band requirement:** `master_prompt.md` asks for meaningful Band Desktop/agent coordination, while the implementation currently reports Band disabled. The local project prompt is evidence of a project requirement, but no event-specific official rubric or Band credentials were supplied to independently verify or exercise that requirement. See the [Band Hacker Guide](https://www.band.ai/hacker-guide) and [Band documentation](https://docs.band.ai/).
 - **Warnings:** Vite reports a minified JavaScript chunk above 500 kB. Hindsight Reflect can fail under upstream provider rate limits; the report continues with recalled evidence and marks reflection unavailable.
 - **Production hardening:** Replace development secrets, configure TLS and production CORS, deploy PostgreSQL/Hindsight with backups and monitoring, and define a production deployment pipeline before exposing the service to real operational data.
 

@@ -16,7 +16,7 @@ export default function MemoryFreeResult({ record }: { record: DecisionReplayRec
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Metric label="Estimated additional cost" value={formatCurrency(strategy.additionalCost)} icon={<CircleDollarSign size={14} />} />
           <Metric label="Expected delivery delay" value={`${strategy.deliveryDelayDays} days`} icon={<Clock3 size={14} />} />
-          <Metric label="Projected shortage" value={`${strategy.projectedShortageUnits.toLocaleString()} units`} icon={<ShieldAlert size={14} />} />
+           <Metric label="Projected shortage" value={strategy.projectedShortageUnits == null ? 'Unavailable' : `${strategy.projectedShortageUnits.toLocaleString()} units`} icon={<ShieldAlert size={14} />} />
           <Metric label="Risk level" value={strategy.riskLevel} icon={<ShieldAlert size={14} />} />
         </div>
         <p className="mt-4 rounded-lg bg-slate-50 p-3 text-[11px] leading-5 text-slate-600">{strategy.tradeOff}</p>

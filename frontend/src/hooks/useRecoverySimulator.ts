@@ -29,8 +29,13 @@ export function useRecoverySimulator() {
       .then(({ data }) => {
         if (active) {
           setIncidents(data)
-          setSelectedIncidentId((current) => current || data[0]?.id || '')
-          if (data.length > 0) setLoadingScenario(true)
+          setSelectedIncidentId((current) => current && data.some((incident) => incident.id === current)
+            ? current
+            : data[0]?.id || '')
+          setScenario(null)
+          setSelectedStrategyKey(null)
+          setLoadingScenario(data.length > 0)
+          setError(false)
         }
       })
       .catch(() => {

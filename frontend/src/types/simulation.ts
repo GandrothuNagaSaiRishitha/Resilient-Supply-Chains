@@ -50,6 +50,7 @@ export interface SimulationScenario {
   strategies: RecoveryStrategy[]
   recommendedStrategyKey: RecoveryStrategyKey
   recommendationExplanation: string
+  inventoryMapping?: { status: 'matched' | 'missing' | 'ambiguous'; reason: string; matchedSku: string | null }
 }
 
 export type SimulationIncidentsResponse = ApiResponse<SimulationIncident[]>

@@ -16,7 +16,7 @@ from ..models import (
 )
 from ..schemas_incidents import RecoveryConfirmationCreate
 from ..services import metrics as metrics_service
-from .common import inventory_for_component
+from .common import resolve_inventory_for_component
 
 router = APIRouter(prefix="/recovery-simulations", tags=["recovery-simulations"])
 
@@ -75,35 +75,37 @@ def build_scenario(db: Session, org_id: uuid.UUID, row: SupplyChainIncident) -> 
         else None
     )
     base_cost = float(order.financial_impact) if order else 0.0
-    affected_inventory = inventory_for_component(db, org_id, row.supplier_id, row.product_component)
-    all_component_inventory = inventory_for_component(db, org_id, None, row.product_component)
-    inventory_matched = affected_inventory.status == "matched"
-    transferable_inventory_matched = all_component_inventory.status == "matched"
-    if not inventory_matched:
-        baseline_shortage = None
-    elif row.available_inventory_quantity is not None:
+    inventory_match = resolve_inventory_for_component(db, org_id, row.supplier_id, row.product_component)
+    affected_inventory = inventory_match.items
+    inventory_available = inventory_match.status == "matched"
+    if row.available_inventory_quantity is not None:
         baseline_shortage = sum(
             max(0, item.reorder_point - row.available_inventory_quantity)
-            for item in affected_inventory.items
-        )
+            for item in affected_inventory
+        ) if inventory_available else None
     else:
         baseline_shortage = sum(
             max(0, item.reorder_point - item.quantity_on_hand)
-            for item in affected_inventory.items
-        )
-    transferable_units = (
-        sum(
-            item.quantity_on_hand - item.reorder_point
-            for item in all_component_inventory.items
-            if item.supplier_id != row.supplier_id and item.quantity_on_hand > item.reorder_point
-        )
-        if transferable_inventory_matched
-        else None
-    )
+            for item in affected_inventory
+        ) if inventory_available else None
+    all_inventory_match = resolve_inventory_for_component(db, org_id, None, row.product_component)
+    transferable_units = sum(
+        item.quantity_on_hand - item.reorder_point
+        for item in all_inventory_match.items
+        if item.supplier_id != row.supplier_id and item.quantity_on_hand > item.reorder_point
+    ) if all_inventory_match.status == "matched" else None
 
     strategies = []
     for key, name in STRATEGIES:
-        if key == "wait":
+        if not inventory_available:
+            additional_cost = 0.0
+            delay = base_delay
+            shortage = 0
+            risk = "Critical"
+            feasible = "Not feasible"
+            note = f"Inventory impact cannot be calculated: {inventory_match.reason}"
+            trade_off = "No strategy can be recommended until the product maps to one canonical inventory record."
+        elif key == "wait":
             additional_cost = 0.0
             delay = base_delay
             shortage = baseline_shortage
@@ -146,23 +148,15 @@ def build_scenario(db: Session, org_id: uuid.UUID, row: SupplyChainIncident) -> 
         else:  # redistribute
             additional_cost = round(base_cost * 0.10, 2)
             delay = max(0, base_delay - 2)
-            shortage = (
-                max(0, baseline_shortage - transferable_units)
-                if baseline_shortage is not None and transferable_units is not None
-                else None
-            )
+            shortage = max(0, baseline_shortage - transferable_units)
             risk = _severity_label((supplier_score or 50) - 5)
-            if transferable_units is None:
-                feasible = "Conditional"
-                note = f"Transfer feasibility is unknown. {all_component_inventory.detail}"
-            else:
-                feasible = "Conditional" if transferable_units else "Not feasible"
-                note = (
-                    f"Up to {transferable_units} units are above reorder point at other suppliers; "
-                    "transfer capacity and location are not recorded."
-                    if transferable_units
-                    else "No transferable surplus is recorded for this component."
-                )
+            feasible = "Conditional" if transferable_units else "Not feasible"
+            note = (
+                f"Up to {transferable_units} units are above reorder point at other suppliers; "
+                "transfer capacity and location are not recorded."
+                if transferable_units
+                else "No transferable surplus is recorded for this component."
+            )
             trade_off = "Low cost, depends on spare inventory at another site."
 
         strategies.append(
@@ -195,7 +189,10 @@ def build_scenario(db: Session, org_id: uuid.UUID, row: SupplyChainIncident) -> 
         {"id": "urgency", "label": "Urgency", "detail": row.urgency},
         {"id": "expectedDelay", "label": "Expected delay", "detail": f"{base_delay} days"},
         {"id": "orgScope", "label": "Organization scope", "detail": "Only this organization's records are used."},
-        {"id": "inventory", "label": "Inventory basis", "detail": f"{baseline_shortage} units below recorded reorder points; transfer capacity is estimated from recorded stock."},
+        {"id": "inventory", "label": "Inventory basis", "detail": (
+            f"{baseline_shortage} units below recorded reorder points; transfer capacity is estimated from recorded stock."
+            if inventory_available else f"Unavailable: {inventory_match.reason}"
+        )},
     ]
     summary = (
         f"{row.crisis_type} reported for {row.product_component}. "
@@ -205,15 +202,20 @@ def build_scenario(db: Session, org_id: uuid.UUID, row: SupplyChainIncident) -> 
     return {
         "incident": _incident_row(row),
         "summary": summary,
-        "constraints": constraints + [
-            {"id": "inventoryMapping", "label": "Inventory match", "detail": affected_inventory.detail},
-        ],
+        "constraints": constraints,
         "strategies": strategies,
         "recommendedStrategyKey": recommended["key"],
         "recommendationExplanation": (
+            f"No strategy is recommended until inventory mapping is resolved: {inventory_match.reason}"
+            if not inventory_available else
             f"Recommended '{recommended['name']}' because it is {recommended['feasibility'].lower()} "
             f"with the lowest combined cost and delay among feasible options."
         ),
+        "inventoryMapping": {
+            "status": inventory_match.status,
+            "reason": inventory_match.reason,
+            "matchedSku": inventory_match.matched_sku,
+        },
     }
 
 

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import uuid
+from secrets import compare_digest
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
+from ..config import get_settings
 from ..db import get_db
-from ..deps import CurrentContext, audit, get_current_context
+from ..deps import CurrentContext, audit, get_current_context, require_role
 from ..models import PurchaseOrder, Supplier
 from ..schemas import (
     MemoryRecallRequest,
@@ -142,7 +144,8 @@ def reflect(
 @router.post("/reset")
 def reset(
     confirm: bool = Query(default=False),
-    ctx: CurrentContext = Depends(get_current_context),
+    reset_token: str | None = Header(default=None, alias="X-Demo-Memory-Reset-Token"),
+    ctx: CurrentContext = Depends(require_role("owner", "admin")),
     db: Session = Depends(get_db),
 ) -> dict:
     """Reset the demo organization's memory bank. Refused for non-demo organizations."""
@@ -150,15 +153,17 @@ def reset(
         raise HTTPException(status_code=422, detail="Pass confirm=true to reset the bank")
     if not ctx.organization.is_demo:
         raise HTTPException(status_code=403, detail="Memory reset is only available for the demo organization")
+    configured_token = get_settings().demo_memory_reset_token
+    if not configured_token:
+        raise HTTPException(status_code=503, detail="Demo memory reset is disabled on this server")
+    if not reset_token or not compare_digest(reset_token, configured_token):
+        raise HTTPException(status_code=403, detail="A valid demo memory reset token is required")
     if ctx.user.role != "admin":
         raise HTTPException(status_code=403, detail="An administrator role is required to reset demo memory")
     try:
         memory_service.reset_bank(db, ctx.organization)
     except memory_service.HindsightUnavailable as exc:
-        raise HTTPException(
-            status_code=503,
-            detail="Hindsight memory could not be reset. No local memory records were deleted.",
-        ) from exc
+        raise HTTPException(status_code=503, detail="Hindsight memory reset is unavailable") from exc
     audit(db, ctx.organization.id, ctx.user.id, "memory.reset", "memory_bank", None, {"demo_only": True})
     db.commit()
     return {"reset": True, "bank_id": ctx.organization.memory_bank_id}

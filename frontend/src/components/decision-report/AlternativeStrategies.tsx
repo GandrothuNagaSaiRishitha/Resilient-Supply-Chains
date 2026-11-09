@@ -64,7 +64,7 @@ function AlternativeCard({
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-100 pt-3 text-[10px] text-slate-500">
         <span>{formatCurrency(strategy.additionalCost)} additional</span>
         <span>{strategy.deliveryDelayDays} day delay</span>
-        <span>{strategy.projectedShortageUnits.toLocaleString()} units short</span>
+         <span>{strategy.projectedShortageUnits == null ? 'Unavailable' : `${strategy.projectedShortageUnits.toLocaleString()} units short`}</span>
       </div>
     </button>
   )

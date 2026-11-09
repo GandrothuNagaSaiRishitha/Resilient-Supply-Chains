@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   AlertCircle,
   ChartNoAxesCombined,
@@ -23,6 +24,7 @@ import type {
   ImpactIncidentOption,
 } from '../types/impact'
 import { isMockMode } from '../services/apiConfig'
+import { normalizeApiError } from '../services/api'
 
 function LoadingState() {
   return (
@@ -45,16 +47,17 @@ function EmptyState({ demo }: { demo: boolean }) {
       <PackageOpen className="mb-3 text-slate-400" size={30} />
       <h2 className="font-semibold text-slate-900">{demo ? 'No demo incidents available' : 'No incidents available'}</h2>
       <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">{demo ? 'There are no illustrative incident records to analyze right now.' : 'Report a crisis to create an incident for impact analysis.'}</p>
+      {!demo && <Link to="/report-crisis" className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700">Report a crisis</Link>}
     </div>
   )
 }
 
-function ErrorState({ onRetry, demo }: { onRetry: () => void; demo: boolean }) {
+function ErrorState({ onRetry, message }: { onRetry: () => void; message: string }) {
   return (
     <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-rose-200 bg-white p-8 text-center">
       <AlertCircle className="mb-3 text-rose-500" size={28} />
       <h2 className="font-semibold text-slate-900">Impact analysis unavailable</h2>
-      <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">{demo ? 'The illustrative impact data could not be loaded. Please try again.' : 'The impact data could not be loaded from the backend. Please try again.'}</p>
+      <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">{message}</p>
       <button type="button" onClick={onRetry} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">
         <RefreshCw size={15} />Try again
       </button>
@@ -86,7 +89,7 @@ export default function ImpactAnalysisPage() {
   const [analysis, setAnalysis] = useState<ImpactAnalysis | null>(null)
   const [loadingIncidents, setLoadingIncidents] = useState(true)
   const [loadingAnalysis, setLoadingAnalysis] = useState(false)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
@@ -95,11 +98,15 @@ export default function ImpactAnalysisPage() {
       .then(({ data }) => {
         if (active) {
           setIncidents(data)
+          setSelectedIncidentId((current) => current && data.some((incident) => incident.id === current)
+            ? current
+            : data[0]?.id || '')
+          setAnalysis(null)
           setLoadingAnalysis(data.length > 0)
-          setSelectedIncidentId((current) => current || data[0]?.id || '')
+          setError(null)
         }
       })
-      .catch(() => { if (active) setError(true) })
+      .catch((requestError: unknown) => { if (active) setError(normalizeApiError(requestError).message) })
       .finally(() => { if (active) setLoadingIncidents(false) })
     return () => { active = false }
   }, [retryKey])
@@ -109,10 +116,10 @@ export default function ImpactAnalysisPage() {
     let active = true
     getImpactAnalysis(selectedIncidentId)
       .then(({ data }) => { if (active) setAnalysis(data) })
-      .catch(() => {
+      .catch((requestError: unknown) => {
         if (active) {
           setAnalysis(null)
-          setError(true)
+          setError(normalizeApiError(requestError).message)
         }
       })
       .finally(() => { if (active) setLoadingAnalysis(false) })
@@ -121,7 +128,7 @@ export default function ImpactAnalysisPage() {
 
   const retry = () => {
     setAnalysis(null)
-    setError(false)
+    setError(null)
     setLoadingIncidents(true)
     setLoadingAnalysis(false)
     setRetryKey((key) => key + 1)
@@ -156,7 +163,7 @@ export default function ImpactAnalysisPage() {
               setSelectedIncidentId(event.target.value)
               setAnalysis(null)
               setLoadingAnalysis(true)
-              setError(false)
+              setError(null)
             }}
             disabled={loadingIncidents || incidents.length === 0}
             className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-3 pr-9 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 disabled:opacity-60"
@@ -173,7 +180,7 @@ export default function ImpactAnalysisPage() {
           </div>
         )}
       </div>
-      {loadingIncidents || loadingAnalysis ? <LoadingState /> : error ? <ErrorState onRetry={retry} demo={isMockMode} /> : !analysis ? <EmptyState demo={isMockMode} /> : <ImpactContent analysis={analysis} />}
+      {loadingIncidents || loadingAnalysis ? <LoadingState /> : error ? <ErrorState onRetry={retry} message={error} /> : !analysis ? <EmptyState demo={isMockMode} /> : <ImpactContent analysis={analysis} />}
     </section>
   )
 }

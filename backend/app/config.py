@@ -4,12 +4,12 @@ from typing import Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-BACKEND_DIR = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=str(BACKEND_DIR / ".env"),
+        env_file=str(ROOT / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     app_name: str = "SUPPLYMIND"
     api_prefix: str = "/api/v1"
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    database_connect_timeout_seconds: int = 5
 
     database_url: str = "postgresql+psycopg://postgres@localhost:5433/supplymind"
     jwt_secret: str = "change-me-in-production"
@@ -35,6 +36,7 @@ class Settings(BaseSettings):
     hindsight_timeout_seconds: float = 180.0
     hindsight_top_k: int = 12
     hindsight_budget: str = "mid"
+    demo_memory_reset_token: Optional[str] = None
 
     band_enabled: bool = False
     band_agent_config: str = "agent_config.yaml"

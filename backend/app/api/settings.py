@@ -22,29 +22,34 @@ settings = get_settings()
 @router.get("/health")
 def health(db: Session = Depends(get_db)) -> dict:
     database_ok = False
+    db_error = None
     try:
         db.execute(text("SELECT 1"))
         database_ok = True
     except Exception as exc:  # noqa: BLE001
-        logger.exception("health check database dependency failed")
+        logger.error("database health check failed", exc_info=exc)
 
     hindsight_ok = False
     hindsight_version = None
-    client = None
+    hindsight_error = None
+    client = memory_service._client(timeout=min(settings.hindsight_timeout_seconds, 5.0))
     try:
-        client = memory_service._client()
         enclosed = client.get_version()
         hindsight_version = str(enclosed)[:200]
         hindsight_ok = True
     except Exception as exc:  # noqa: BLE001
-        logger.exception("health check Hindsight dependency failed")
+        logger.error("Hindsight health check failed", exc_info=exc)
     finally:
         memory_service._close_client(client)
 
     return {
         "status": "ok" if database_ok and hindsight_ok else "degraded",
-        "database": {"ok": database_ok},
-        "hindsight": {"ok": hindsight_ok, "version": hindsight_version},
+        "database": {"ok": database_ok, "status": "available" if database_ok else "unavailable"},
+        "hindsight": {
+            "ok": hindsight_ok,
+            "status": "available" if hindsight_ok else "unavailable",
+            "version": hindsight_version,
+        },
         "groq_configured": bool(settings.groq_api_key),
         "band_configured": bool(settings.band_enabled),
         "scheduler_enabled": settings.scheduler_enabled,

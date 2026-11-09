@@ -10,7 +10,7 @@ export default function ReplayExplanation({ record }: { record: DecisionReplayRe
         <div className="flex items-start gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600"><Info size={17} /></span>
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">Why the replay recommendation changed</h2>
+            <h2 className="text-sm font-semibold text-slate-900">Replay evidence status</h2>
             <p className="mt-2 text-xs leading-6 text-slate-600">{record.evidenceExplanation}</p>
           </div>
         </div>
@@ -19,7 +19,9 @@ export default function ReplayExplanation({ record }: { record: DecisionReplayRe
       <p className="mt-4 border-t border-blue-100 pt-3 text-[10px] leading-5 text-slate-500">
         {isMockMode
           ? 'This page presents static, authored comparisons from illustrative demo records. It does not run an AI decision engine, query Hindsight, or represent a real replay of production data.'
-          : 'The backend compares the incident baseline with organization-scoped Hindsight evidence. This replay is analytical and does not change the original decision.'}
+          : record.memoryStatus === 'available'
+            ? 'The backend compares the incident baseline with organization-scoped Hindsight evidence. This replay is analytical and does not change the original decision.'
+            : 'Only the backend baseline is available. No memory-informed comparison was performed, and the original decision was not changed.'}
       </p>
     </aside>
   )

@@ -78,7 +78,7 @@ export default function StrategyComparison({
                   </td>
                   <td className="whitespace-nowrap px-4 py-3.5">{formatCurrency(strategy.additionalCost)}</td>
                   <td className="whitespace-nowrap px-4 py-3.5">{strategy.deliveryDelayDays} days</td>
-                  <td className="whitespace-nowrap px-4 py-3.5">{strategy.projectedShortageUnits.toLocaleString()} units</td>
+                   <td className="whitespace-nowrap px-4 py-3.5">{strategy.projectedShortageUnits == null ? 'Unavailable' : `${strategy.projectedShortageUnits.toLocaleString()} units`}</td>
                   <td className="whitespace-nowrap px-4 py-3.5"><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ring-1 ring-inset ${riskStyles[strategy.riskLevel]}`}>{strategy.riskLevel}</span></td>
                   <td className="whitespace-nowrap px-4 py-3.5"><span className={`rounded-full px-2 py-1 text-[10px] font-medium ${feasibilityStyles[strategy.feasibility]}`}>{strategy.feasibility}</span></td>
                 </tr>

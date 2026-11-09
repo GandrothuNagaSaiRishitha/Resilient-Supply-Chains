@@ -56,7 +56,7 @@ export function normalizeApiError(error: unknown): ApiClientError {
 
 const api = axios.create({
   baseURL: getApiBaseUrl(),
-  timeout: 15_000,
+  timeout: Number(import.meta.env.VITE_API_TIMEOUT_MS) || 15_000,
   headers: { Accept: 'application/json' },
 })
 

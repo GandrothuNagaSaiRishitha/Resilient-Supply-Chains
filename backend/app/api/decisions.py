@@ -49,6 +49,9 @@ def _historical_evidence(hits: list[dict], incident: SupplyChainIncident) -> lis
             outcome = "Unsuccessful"
         else:
             outcome = "Outcome not recorded"
+        verified = provenance.get("verified", metadata.get("verified"))
+        if isinstance(verified, str):
+            verified = verified.lower() == "true"
         evidence.append(
             {
                 "id": str(evidence_id),
@@ -61,7 +64,7 @@ def _historical_evidence(hits: list[dict], incident: SupplyChainIncident) -> lis
                     or hit.get("text", "")[:600]
                     or "No lesson text was returned."
                 ),
-                "verified": provenance.get("verified", metadata.get("verified")),
+                "verified": verified,
                 "sourceType": provenance.get("source_type", metadata.get("source_type")),
                 "confidence": provenance.get("confidence", metadata.get("confidence")),
             }
@@ -162,22 +165,16 @@ def decision_recommendation(
             *(
                 str(value)
                 for value in (
-                    row.crisis_type,
-                    row.title,
-                    row.description,
-                    supplier.name if supplier else None,
-                    row.product_component,
-                    row.origin,
-                    row.destination,
-                    f"expected delay {row.expected_delay_days} days"
-                    if row.expected_delay_days is not None
-                    else None,
-                    f"available inventory {row.available_inventory_quantity}"
-                    if row.available_inventory_quantity is not None
-                    else None,
-                    f"affected orders {row.affected_orders}"
-                    if row.affected_orders is not None
-                    else None,
+            row.crisis_type,
+            row.title,
+            row.description,
+            supplier.name if supplier else None,
+            row.product_component,
+            row.origin,
+            row.destination,
+            f"expected delay {row.expected_delay_days} days" if row.expected_delay_days is not None else None,
+            f"available inventory {row.available_inventory_quantity}" if row.available_inventory_quantity is not None else None,
+            f"affected orders {row.affected_orders}" if row.affected_orders is not None else None,
                     row.urgency,
                 )
                 if value is not None and str(value).strip()
@@ -212,6 +209,7 @@ def decision_recommendation(
                 query=query,
                 context="Synthesize evidence for this recovery recommendation. Distinguish observed outcomes from inference.",
                 budget="mid",
+                retry_transient=False,
             )
             reflection = reflected.get("text")
             reflection_status = "used" if reflection else "empty"
@@ -314,13 +312,24 @@ def record_decision_action(
             )
         )
         if existing is not None:
-            return {
-                "data": {
-                    "confirmationId": str(existing.id),
-                    "demo": False,
-                    "message": f"Decision '{existing.decision}' was already recorded.",
-                }
-            }
+            return {"data": {"confirmationId": str(existing.id), "demo": False, "message": f"Decision '{existing.decision}' was already recorded."}}
+
+    existing = next(
+        (
+            item for item in db.scalars(
+                select(ProcurementDecision).where(
+                    ProcurementDecision.organization_id == ctx.organization.id,
+                ).order_by(ProcurementDecision.created_at.desc())
+            ).all()
+            if (item.evidence or {}).get("incident_id") == str(payload.incident_id)
+            and (item.evidence or {}).get("strategy_key") == payload.strategy_key
+            and item.decision == payload.action
+            and item.rationale == payload.explanation
+        ),
+        None,
+    )
+    if existing is not None:
+        return {"data": {"confirmationId": str(existing.id), "demo": False, "message": "Identical decision action was already recorded."}}
 
     decision = ProcurementDecision(
         organization_id=ctx.organization.id,
@@ -330,10 +339,10 @@ def record_decision_action(
         rationale=payload.explanation,
         evidence={
             "incident_id": str(payload.incident_id),
+            "request_id": str(payload.request_id) if payload.request_id else None,
             "strategy_key": payload.strategy_key,
             "crisis_type": incident.crisis_type,
             "urgency": incident.urgency,
-            "request_id": str(payload.request_id) if payload.request_id else None,
         },
         created_by=ctx.user.id,
         status="proposed" if payload.action == "accepted" else "recorded",
@@ -398,6 +407,27 @@ def record_outcome_feedback(
         db.add(decision)
         db.flush()
 
+    outcome_details = {
+        "strategyKey": payload.strategy_key,
+        "actualAdditionalCost": payload.actual_additional_cost,
+        "actualDeliveryDelayDays": payload.actual_delivery_delay_days,
+        "actualInventoryShortage": payload.actual_inventory_shortage,
+        "ordersAffected": payload.orders_affected,
+    }
+    for existing_outcome in db.scalars(
+        select(DecisionOutcome)
+        .where(
+            DecisionOutcome.organization_id == ctx.organization.id,
+            DecisionOutcome.decision_id == decision.id,
+        )
+        .order_by(DecisionOutcome.created_at.desc())
+    ).all():
+        existing_details = existing_outcome.details or {}
+        if existing_outcome.success == payload.successful and all(
+            existing_details.get(key) == value for key, value in outcome_details.items()
+        ):
+            return {"data": {"outcomeId": str(existing_outcome.id), "demo": False, "message": "Identical outcome feedback was already recorded."}}
+
     outcome = DecisionOutcome(
         organization_id=ctx.organization.id,
         decision_id=decision.id,
@@ -405,11 +435,12 @@ def record_outcome_feedback(
         success=payload.successful,
         notes=payload.additional_notes,
         details={
-            "strategyKey": payload.strategy_key,
-            "actualAdditionalCost": payload.actual_additional_cost,
-            "actualDeliveryDelayDays": payload.actual_delivery_delay_days,
-            "actualInventoryShortage": payload.actual_inventory_shortage,
-            "ordersAffected": payload.orders_affected,
+            **outcome_details,
+            "provenance": {
+                "sourceType": "user_reported_fact",
+                "verified": False,
+                "confidence": 0.8,
+            },
         },
         synthetic=False,
     )

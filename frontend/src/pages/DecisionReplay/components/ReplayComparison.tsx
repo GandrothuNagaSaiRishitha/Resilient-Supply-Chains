@@ -6,13 +6,16 @@ import { isMockMode } from '../../../services/apiConfig'
 
 export default function ReplayComparison({ record }: { record: DecisionReplayRecord }) {
   const baseline = strategyForKey(record.scenario, record.memoryFreeStrategyKey)
-  const informed = strategyForKey(record.scenario, record.memoryInformedStrategyKey)
+  const memoryStatus = record.memoryStatus ?? (isMockMode ? 'available' : 'unavailable')
+  const informed = memoryStatus === 'available' && record.memoryInformedStrategyKey
+    ? strategyForKey(record.scenario, record.memoryInformedStrategyKey)
+    : null
   const rows = [
-    { label: 'Recommendation', baseline: baseline.name, informed: informed.name },
-    { label: 'Estimated cost', baseline: formatCurrency(baseline.additionalCost), informed: formatCurrency(informed.additionalCost) },
-    { label: 'Delivery delay', baseline: `${baseline.deliveryDelayDays} days`, informed: `${informed.deliveryDelayDays} days` },
-    { label: 'Projected shortage', baseline: `${baseline.projectedShortageUnits.toLocaleString()} units`, informed: `${informed.projectedShortageUnits.toLocaleString()} units` },
-    { label: 'Risk', baseline: baseline.riskLevel, informed: informed.riskLevel },
+    { label: 'Recommendation', baseline: baseline.name, informed: informed?.name ?? 'Unavailable' },
+    { label: 'Estimated cost', baseline: formatCurrency(baseline.additionalCost), informed: informed ? formatCurrency(informed.additionalCost) : 'Unavailable' },
+    { label: 'Delivery delay', baseline: `${baseline.deliveryDelayDays} days`, informed: informed ? `${informed.deliveryDelayDays} days` : 'Unavailable' },
+     { label: 'Projected shortage', baseline: baseline.projectedShortageUnits == null ? 'Unavailable' : `${baseline.projectedShortageUnits.toLocaleString()} units`, informed: informed?.projectedShortageUnits == null ? 'Unavailable' : `${informed.projectedShortageUnits.toLocaleString()} units` },
+    { label: 'Risk', baseline: baseline.riskLevel, informed: informed?.riskLevel ?? 'Unavailable' },
   ]
 
   return (
@@ -28,7 +31,7 @@ export default function ReplayComparison({ record }: { record: DecisionReplayRec
       </div>
       <div className="grid gap-3 p-5 sm:grid-cols-2 sm:p-6">
         <Reason title="Memory-free rationale" text={baseline.tradeOff} />
-        <Reason title="Memory-informed change" text={record.comparisonExplanation} />
+        <Reason title={informed ? 'Memory-informed change' : 'Memory-informed comparison'} text={record.comparisonExplanation} />
       </div>
     </section>
   )

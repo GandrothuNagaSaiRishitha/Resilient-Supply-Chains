@@ -100,7 +100,7 @@ export function StrategyMetrics({ strategy }: { strategy: RecoveryStrategy }) {
     <div className="grid grid-cols-2 gap-3">
       <Metric label="Estimated additional cost" value={formatCurrency(strategy.additionalCost)} icon={<CircleDollarSign size={15} />} />
       <Metric label="Expected delivery time" value={`${strategy.deliveryDelayDays} days`} icon={<Clock3 size={15} />} />
-      <Metric label="Projected shortage" value={`${strategy.projectedShortageUnits.toLocaleString()} units`} icon={<PackageOpen size={15} />} />
+       <Metric label="Projected shortage" value={strategy.projectedShortageUnits == null ? 'Unavailable' : `${strategy.projectedShortageUnits.toLocaleString()} units`} icon={<PackageOpen size={15} />} />
       <Metric label="Risk level" value={strategy.riskLevel} icon={<ShieldAlert size={15} />} />
     </div>
   )

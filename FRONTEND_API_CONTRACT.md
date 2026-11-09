@@ -8,11 +8,19 @@ from `{ message?, detail?, error?, code?, requestId?, details? }`.
 
 ## Integration-wide behavior
 
-- `VITE_DATA_SOURCE` selects `mock` or `api`. The frontend defaults to `mock`
-  when the variable is unset; `.env.example` shows API mode.
+- `VITE_DATA_SOURCE` selects `mock` or `api`. The frontend defaults to `api`
+  when the variable is unset; `mock` must be explicitly selected.
 - In API mode, `VITE_API_BASE_URL` must be configured for production requests.
-- The client sends `Accept: application/json`, has a 15-second timeout, and
-  attaches a Bearer authorization header using the demo-login token.
+- The client sends `Accept: application/json`, uses a configurable general
+  timeout (`VITE_API_TIMEOUT_MS`, default 15 seconds), and attaches a Bearer
+  authorization header using the demo-login token. Memory requests use
+  `VITE_MEMORY_API_TIMEOUT_MS` (default 180 seconds) because Hindsight retrieval
+  can be slower than ordinary API calls. Decision recommendation requests use
+  `VITE_DECISION_API_TIMEOUT_MS` (default 600 seconds) because they may wait for
+  Hindsight recall/reflect and Groq generation.
+- Demo login uses the general API timeout. Decision generation makes at most
+  one Hindsight reflect attempt and one Groq attempt per configured model,
+  then returns the deterministic baseline if Groq is unavailable.
 - Before the first API call, the client obtains a token with
   `POST /api/v1/auth/demo-login`, no request body. Expected response:
   `{ "access_token": "..." }`. It stores the token in session storage.
@@ -34,7 +42,7 @@ from `{ message?, detail?, error?, code?, requestId?, details? }`.
 | Impact Analysis: incidents | `GET /api/impacts/incidents` | None | `ApiResponse<ImpactIncidentOption[]>` |
 | Impact Analysis: selected incident | `GET /api/impacts/incidents/{incidentId}` | None; URL-encoded `incidentId` | `ApiResponse<ImpactAnalysis>` |
 | Recovery Strategies: incidents | `GET /api/recovery-simulations/incidents` | None | `ApiResponse<SimulationIncident[]>` |
-| Recovery Strategies: scenario | `GET /api/recovery-simulations/incidents/{incidentId}` | None; URL-encoded `incidentId` | `ApiResponse<SimulationScenario>` |
+| Recovery Strategies: scenario | `GET /api/recovery-simulations/incidents/{incidentId}` | None; URL-encoded `incidentId` | `ApiResponse<SimulationScenario>`; includes `inventoryMapping` and marks unmapped inventory as not feasible |
 | Recovery Strategies: confirm | `POST /api/recovery-simulations/confirmations` | `ConfirmStrategyRequest` | `ApiResponse<ConfirmStrategyResponse>` |
 | Decision Report: incidents | `GET /api/decisions/incidents` | None | `ApiResponse<SimulationIncident[]>` |
 | Decision Report: recommendation | `GET /api/decisions/incidents/{incidentId}/recommendation` | None; URL-encoded `incidentId` | `ApiResponse<DecisionReport>` |
@@ -42,7 +50,7 @@ from `{ message?, detail?, error?, code?, requestId?, details? }`.
 | Decision Report: outcome feedback | `POST /api/decisions/outcomes` | `OutcomeFeedbackRequest` | `ApiResponse<OutcomeFeedbackResponse>` |
 | Decision Replay: incidents | `GET /api/decision-replays/incidents` | None | `ApiResponse<SimulationIncident[]>` |
 | Decision Replay: record | `GET /api/decision-replays/{incidentId}` | None; URL-encoded `incidentId` | `ApiResponse<DecisionReplayRecord>` |
-| Decision Replay: run | `POST /api/decision-replays/{incidentId}/run` | No body | `ApiResponse<{ incidentId, replayed, message }>` |
+| Decision Replay: run | `POST /api/decision-replays/{incidentId}/run` | No body | `ApiResponse<{ incidentId, replayed, memoryStatus, message }>` |
 | Hindsight / Memory: overview | `GET /api/memories/overview` | None | `ApiResponse<MemoryCentreData>` |
 | Hindsight / Memory: search | `GET /api/memories` | Query params listed below | `ApiResponse<HistoricalIncidentMemory[]>` |
 | Hindsight / Memory: detail | `GET /api/memories/{memoryId}` | None; URL-encoded `memoryId` | `ApiResponse<HistoricalIncidentMemory>` |
@@ -71,6 +79,10 @@ from `{ message?, detail?, error?, code?, requestId?, details? }`.
 `DecisionActionRequest`: `{ incidentId: string, action: 'accepted' | 'rejected' | 'alternative', strategyKey: RecoveryStrategyKey | null, explanation: string }`.
 The UI sends an empty explanation when none was entered. Rejecting sends a
 `null` strategy key.
+
+The backend deduplicates identical decision-action and outcome-feedback
+requests for the same organization and incident, returning the original record
+ID rather than creating duplicate records.
 
 `OutcomeFeedbackRequest`: `{ incidentId: string, strategyKey: RecoveryStrategyKey, actualAdditionalCost: number, actualDeliveryDelayDays: number, actualInventoryShortage: number, ordersAffected: number, successful: boolean, lessonsLearned: string, additionalNotes: string }`.
 The four numeric fields and success choice are required in the UI;
@@ -364,7 +376,8 @@ export interface DecisionReplayRecord {
   originalStrategyKey: RecoveryStrategyKey
   actualOutcome: ReplayActualOutcome
   memoryFreeStrategyKey: RecoveryStrategyKey
-  memoryInformedStrategyKey: RecoveryStrategyKey
+  memoryInformedStrategyKey: RecoveryStrategyKey | null
+  memoryStatus: 'available' | 'empty' | 'unavailable'
   historicalEvidence: ReplayHistoricalEvidence[]
   evidenceExplanation: string
   comparisonExplanation: string
@@ -374,6 +387,7 @@ export type DecisionReplayResponse = ApiResponse<DecisionReplayRecord>
 export type ReplayActionResponse = ApiResponse<{
   incidentId: string
   replayed: boolean
+  memoryStatus: 'available' | 'empty' | 'unavailable'
   message: string
 }>
 
@@ -484,6 +498,12 @@ export interface DashboardApiResponse {
   upcoming_deliveries: UpcomingDelivery[]
 }
 ```
+
+For Decision Replay, `memoryStatus` distinguishes successful recall with
+results (`available`), successful recall without relevant results (`empty`),
+and failed Hindsight requests (`unavailable`). When no comparable retained
+strategy is available, `memoryInformedStrategyKey` is `null`; show only the
+baseline and do not label it as memory-informed.
 
 ## Mock usage and page states
 

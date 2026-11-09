@@ -45,6 +45,13 @@ export default function DecisionReplay() {
       ) : replay.record ? (
         <>
           <OriginalDecision record={replay.record} />
+          {!isMockMode && replay.record.memoryStatus !== 'available' && (
+            <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+              {replay.record.memoryStatus === 'empty'
+                ? 'Hindsight returned no relevant memories; the page shows only the baseline replay.'
+                : 'Hindsight is unavailable; the page shows only the baseline replay.'}
+            </p>
+          )}
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div className="flex items-start gap-2">
               <Sparkles size={16} className="mt-0.5 shrink-0 text-blue-600" />
@@ -61,7 +68,10 @@ export default function DecisionReplay() {
             <MemoryInformedResult record={replay.record} />
           </div>
           <ReplayComparison record={replay.record} />
-          <MemoryEvidence evidence={replay.record.historicalEvidence} />
+          <MemoryEvidence
+            evidence={replay.record.historicalEvidence}
+            memoryStatus={replay.record.memoryStatus}
+          />
           <ReplayExplanation record={replay.record} />
         </>
       ) : (

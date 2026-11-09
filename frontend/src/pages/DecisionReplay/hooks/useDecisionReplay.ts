@@ -24,10 +24,13 @@ export function useDecisionReplay() {
       .then(({ data }) => {
         if (active) {
           setIncidents(data)
-          if (!selectedIncidentId.current && data[0]) {
-            selectedIncidentId.current = data[0].id
-            setIncidentId(data[0].id)
-          }
+          const nextId = selectedIncidentId.current && data.some((incident) => incident.id === selectedIncidentId.current)
+            ? selectedIncidentId.current
+            : data[0]?.id || ''
+          selectedIncidentId.current = nextId
+          setIncidentId(nextId)
+          setRecord(null)
+          setError(false)
           if (data.length === 0) setLoading(false)
         }
       })
@@ -45,7 +48,10 @@ export function useDecisionReplay() {
     let active = true
     getDecisionReplay(incidentId)
       .then(({ data }) => {
-        if (active) setRecord(data)
+        if (active) {
+          setRecord(data)
+          setError(false)
+        }
       })
       .catch(() => {
         if (active) setError(true)

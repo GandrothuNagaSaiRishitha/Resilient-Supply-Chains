@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import re
 import uuid
-from dataclasses import dataclass
 from datetime import datetime, timezone
+from dataclasses import dataclass
+import re
 from typing import Literal
 
 from fastapi import HTTPException
@@ -23,6 +23,14 @@ class InventoryLookup:
     items: tuple[InventoryItem, ...]
     detail: str
 
+    def __iter__(self):
+        return iter(self.items)
+
+    def __eq__(self, other):
+        if isinstance(other, list):
+            return list(self.items) == other
+        return super().__eq__(other)
+
 
 def iso(value: datetime | None) -> str | None:
     if value is None:
@@ -36,61 +44,80 @@ def supplier_metrics(db: Session, organization_id: uuid.UUID) -> dict[uuid.UUID,
     return metrics_service.supplier_metrics_map(db, organization_id)
 
 
+@dataclass(frozen=True)
+class InventoryMatch:
+    """The result of resolving an incident component to canonical inventory."""
+
+    items: tuple[InventoryItem, ...]
+    status: str
+    reason: str
+    matched_sku: str | None = None
+
+
+def _canonical(value: str | None) -> str:
+    return re.sub(r"[^a-z0-9]+", "", (value or "").casefold())
+
+
+def resolve_inventory_for_component(
+    db: Session,
+    organization_id: uuid.UUID,
+    supplier_id: uuid.UUID | None,
+    product_component: str,
+) -> InventoryMatch:
+    """Resolve a component description to exact, tenant-scoped inventory."""
+    component = (product_component or "").strip()
+    query = select(InventoryItem).where(InventoryItem.organization_id == organization_id)
+    if supplier_id:
+        query = query.where(InventoryItem.supplier_id == supplier_id)
+    items = db.scalars(query.order_by(InventoryItem.name, InventoryItem.sku).limit(2000)).all()
+    if not component:
+        return InventoryMatch((), "missing", "The incident has no product or SKU description.")
+
+    by_sku: dict[str, list[InventoryItem]] = {}
+    for item in items:
+        sku = _canonical(item.sku)
+        if sku:
+            by_sku.setdefault(sku, []).append(item)
+    exact_sku = by_sku.get(_canonical(component), [])
+    if len(exact_sku) == 1:
+        item = exact_sku[0]
+        return InventoryMatch((item,), "matched", "Exact canonical SKU match.", item.sku)
+    if len(exact_sku) > 1:
+        return InventoryMatch((), "ambiguous", "The canonical SKU maps to multiple inventory records.")
+
+    embedded = {
+        _canonical(token)
+        for token in re.findall(r"[A-Za-z0-9][A-Za-z0-9_-]*", component)
+        if _canonical(token) in by_sku
+    }
+    if len(embedded) == 1:
+        sku = next(iter(embedded))
+        matches = by_sku[sku]
+        if len(matches) != 1:
+            return InventoryMatch((), "ambiguous", "An embedded canonical SKU maps to multiple inventory records.")
+        item = matches[0]
+        return InventoryMatch((item,), "matched", "Exact canonical SKU embedded in the component description.", item.sku)
+    if len(embedded) > 1:
+        return InventoryMatch((), "ambiguous", "The component description contains multiple canonical SKUs.")
+
+    exact_name = [item for item in items if _canonical(item.name) == _canonical(component)]
+    if len(exact_name) == 1:
+        return InventoryMatch((exact_name[0],), "matched", "Exact canonical product-name match.", exact_name[0].sku)
+    if len(exact_name) > 1:
+        return InventoryMatch((), "ambiguous", "The product name maps to multiple inventory records.")
+
+    return InventoryMatch((), "missing", "No canonical SKU or product mapping exists for this component.")
+
+
 def inventory_for_component(
     db: Session,
     organization_id: uuid.UUID,
     supplier_id: uuid.UUID | None,
     product_component: str,
 ) -> InventoryLookup:
-    component = product_component.strip()
-    if not component:
-        return InventoryLookup("unmapped", (), "No product identifier was provided.")
-    query = select(InventoryItem).where(InventoryItem.organization_id == organization_id)
-    if supplier_id:
-        query = query.where(InventoryItem.supplier_id == supplier_id)
-    items = db.scalars(query.order_by(InventoryItem.name)).all()
-
-    def normalized(value: str) -> str:
-        return "".join(character.casefold() for character in value if character.isalnum())
-
-    sku_matches = []
-    for item in items:
-        sku_parts = re.findall(r"[A-Za-z0-9]+", item.sku or "")
-        if not sku_parts:
-            continue
-        sku_pattern = (
-            r"(?<![A-Za-z0-9])"
-            + r"[^A-Za-z0-9]*".join(re.escape(part) for part in sku_parts)
-            + r"(?![A-Za-z0-9])"
-        )
-        if re.search(sku_pattern, component, flags=re.IGNORECASE):
-            sku_matches.append(item)
-
-    if sku_matches:
-        if len(sku_matches) == 1:
-            item = sku_matches[0]
-            return InventoryLookup("matched", (item,), f"Matched exact SKU {item.sku}.")
-        return InventoryLookup(
-            "ambiguous",
-            (),
-            "The supplied product description matches multiple inventory SKUs.",
-        )
-
-    name_key = normalized(component)
-    name_matches = [item for item in items if normalized(item.name) == name_key]
-    if len(name_matches) == 1:
-        return InventoryLookup("matched", (name_matches[0],), f"Matched exact product name {name_matches[0].name}.")
-    if len(name_matches) > 1:
-        return InventoryLookup(
-            "ambiguous",
-            (),
-            "The product name matches multiple inventory records; provide a SKU to disambiguate.",
-        )
-    return InventoryLookup(
-        "unmapped",
-        (),
-        "No inventory record matched the supplied SKU or exact product name.",
-    )
+    match = resolve_inventory_for_component(db, organization_id, supplier_id, product_component)
+    status = "unmapped" if match.status == "missing" else match.status
+    return InventoryLookup(status, match.items, match.reason)
 
 
 def supplier_json(
