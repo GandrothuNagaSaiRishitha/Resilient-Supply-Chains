@@ -54,11 +54,30 @@ def form_options(ctx: CurrentContext = Depends(get_current_context), db: Session
     suppliers = db.scalars(
         select(Supplier).where(Supplier.organization_id == ctx.organization.id).order_by(Supplier.name)
     ).all()
+    orders = db.scalars(
+        select(PurchaseOrder)
+        .where(
+            PurchaseOrder.organization_id == ctx.organization.id,
+            PurchaseOrder.status.notin_(["delivered", "cancelled"]),
+        )
+        .order_by(PurchaseOrder.order_number)
+    ).all()
     return {
         "data": {
             "crisisTypes": ["Shipment Disruption", "Supplier Failure", "Inventory Shortage"],
             "urgencies": ["Low", "Medium", "High", "Critical"],
             "suppliers": [{"id": str(s.id), "name": s.name} for s in suppliers],
+            "orders": [
+                {
+                    "id": str(order.id),
+                    "orderNumber": order.order_number,
+                    "supplierId": str(order.supplier_id),
+                    "product": order.product,
+                    "status": order.status,
+                    "destination": order.destination,
+                }
+                for order in orders
+            ],
         }
     }
 
@@ -111,7 +130,7 @@ def create_crisis(
         description=payload.description,
         supplier_id=supplier.id if supplier else None,
         order_id=order.id if order else None,
-        product_component=payload.product_component,
+        product_component=order.product if order else payload.product_component,
         origin=payload.origin,
         destination=payload.destination,
         expected_delay_days=payload.expected_delay_days,

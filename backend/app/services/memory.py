@@ -35,6 +35,23 @@ def _client() -> Hindsight:
     return Hindsight(base_url=settings.hindsight_base_url, timeout=settings.hindsight_timeout_seconds)
 
 
+def _close_client(client: Hindsight | None) -> None:
+    if client is not None:
+        try:
+            client.close()
+        except Exception:  # noqa: BLE001
+            logger.debug("failed to close Hindsight client", exc_info=True)
+
+
+def _status_code(error: Exception) -> int | None:
+    response = getattr(error, "response", None)
+    return (
+        getattr(error, "status", None)
+        or getattr(error, "status_code", None)
+        or getattr(response, "status_code", None)
+    )
+
+
 def _aware(value: datetime | None) -> datetime | None:
     if value is None:
         return None
@@ -78,20 +95,26 @@ def ensure_bank(organization: Organization, bank_id: str | None = None) -> None:
         "enable_reranking": True,
     }
     try:
-        client.create_bank(
-            bank_id=bank,
-            name=f"{organization.name} - SUPPLYMIND {label}",
-            mission=mission,
-            disposition={"skepticism": 4, "literalism": 4, "empathy": 2},
-            **bank_options,
-        )
-        return
-    except Exception:  # bank may already exist; Hindsight returns a conflict
-        pass
-    try:
-        client.update_bank_config(bank_id=bank, **bank_options)
-    except Exception:  # config API may be disabled; creation defaults still apply
-        pass
+        try:
+            client.get_bank_config(bank_id=bank)
+            return
+        except Exception as exc:
+            if _status_code(exc) != 404:
+                raise
+        try:
+            client.create_bank(
+                bank_id=bank,
+                name=f"{organization.name} - SUPPLYMIND {label}",
+                mission=mission,
+                disposition={"skepticism": 4, "literalism": 4, "empathy": 2},
+                **bank_options,
+            )
+        except Exception as exc:
+            if _status_code(exc) != 409:
+                raise
+            client.get_bank_config(bank_id=bank)
+    finally:
+        _close_client(client)
 
 
 def _log(
@@ -168,7 +191,9 @@ def retain(
         **(metadata or {}),
     }
     started = time.perf_counter()
+    client: Hindsight | None = None
     try:
+        ensure_bank(organization, bank_id)
         client = _client()
         last_exc: Exception | None = None
         result = None
@@ -253,6 +278,8 @@ def retain(
             error=str(exc),
         )
         raise HindsightUnavailable(f"Hindsight retain failed: {exc}") from exc
+    finally:
+        _close_client(client)
 
 
 def recall(
@@ -269,7 +296,9 @@ def recall(
 ) -> dict:
     bank = bank_for(organization, bank_id)
     started = time.perf_counter()
+    client: Hindsight | None = None
     try:
+        ensure_bank(organization, bank_id)
         client = _client()
         response = client.recall(
             bank_id=bank,
@@ -368,6 +397,8 @@ def recall(
             error=str(exc),
         )
         raise HindsightUnavailable(f"Hindsight recall failed: {exc}") from exc
+    finally:
+        _close_client(client)
 
 
 def reflect(
@@ -383,7 +414,9 @@ def reflect(
 ) -> dict:
     bank = bank_for(organization, bank_id)
     started = time.perf_counter()
+    client: Hindsight | None = None
     try:
+        ensure_bank(organization, bank_id)
         client = _client()
         answer = None
         last_exc: Exception | None = None
@@ -455,6 +488,8 @@ def reflect(
             error=str(exc),
         )
         raise HindsightUnavailable(f"Hindsight reflect failed: {exc}") from exc
+    finally:
+        _close_client(client)
 
 
 def lab_bank_id(organization: Organization) -> str:
@@ -566,6 +601,8 @@ def reset_bank(db: Session, organization: Organization, bank_id: str | None = No
         client.delete_bank(bank)
     except Exception:  # noqa: BLE001
         pass
+    finally:
+        _close_client(client)
     ensure_bank(organization, bank)
     for row in db.scalars(
         select(MemoryRecord).where(

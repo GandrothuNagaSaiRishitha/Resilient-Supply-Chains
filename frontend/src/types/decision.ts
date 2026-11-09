@@ -20,6 +20,19 @@ export interface HistoricalEvidence {
   outcome: string
   lessonLearned: string
   demoRecord?: boolean
+  verified?: boolean | null
+}
+
+export interface AIRecommendation {
+  status: 'generated' | 'fallback'
+  strategyKey: RecoveryStrategyKey
+  rationale: string
+  estimatedImpact: string
+  risks: string[]
+  tradeOffs: string[]
+  evidenceStrength: 'none' | 'limited' | 'moderate' | 'strong'
+  evidenceIds: string[]
+  notice?: string | null
 }
 
 export interface AlternativeStrategyContext {
@@ -44,6 +57,9 @@ export interface DecisionReport {
   executionConditions: string[]
   alternatives: AlternativeStrategyContext[]
   historicalEvidence: HistoricalEvidence[]
+  aiRecommendation?: AIRecommendation
+  memoryStatus?: 'available' | 'empty' | 'unavailable'
+  reflectionStatus?: 'used' | 'empty' | 'unavailable' | 'not_needed'
   memoryComparison: MemoryComparison
   demoDataNotice?: string
 }

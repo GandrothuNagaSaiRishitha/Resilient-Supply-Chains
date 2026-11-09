@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import Organization, PurchaseOrder, ShipmentEvent, Supplier, SupplierComplaint
+from ..models import InventoryItem, Organization, PurchaseOrder, ShipmentEvent, Supplier, SupplierComplaint
 from ..schemas import SupplierMetrics
 from ..services import metrics as metrics_service
 
@@ -24,6 +24,35 @@ def iso(value: datetime | None) -> str | None:
 
 def supplier_metrics(db: Session, organization_id: uuid.UUID) -> dict[uuid.UUID, SupplierMetrics]:
     return metrics_service.supplier_metrics_map(db, organization_id)
+
+
+def inventory_for_component(
+    db: Session,
+    organization_id: uuid.UUID,
+    supplier_id: uuid.UUID | None,
+    product_component: str,
+) -> list[InventoryItem]:
+    component_key = "".join(character.casefold() for character in product_component if character.isalnum())
+    if not component_key:
+        return []
+
+    query = select(InventoryItem).where(InventoryItem.organization_id == organization_id)
+    if supplier_id:
+        query = query.where(InventoryItem.supplier_id == supplier_id)
+    items = db.scalars(query.order_by(InventoryItem.name).limit(2000)).all()
+
+    def normalized(value: str | None) -> str:
+        return "".join(character.casefold() for character in (value or "") if character.isalnum())
+
+    return [
+        item
+        for item in items
+        if (sku := normalized(item.sku))
+        and len(sku) >= 3
+        and sku in component_key
+        or (name := normalized(item.name))
+        and (name in component_key or component_key in name)
+    ]
 
 
 def supplier_json(

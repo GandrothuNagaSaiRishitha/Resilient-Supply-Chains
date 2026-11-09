@@ -34,7 +34,10 @@ export default function AffectedOperationsFields({
           name="supplierId"
           className={reportInputClass}
           value={values.supplierId}
-          onChange={(event) => setField('supplierId', event.target.value)}
+          onChange={(event) => {
+            setField('supplierId', event.target.value)
+            setField('shipmentId', '')
+          }}
           required
           disabled={!options}
         >
@@ -52,6 +55,7 @@ export default function AffectedOperationsFields({
           placeholder="e.g. Control module CM-204"
           value={values.productComponent}
           onChange={(event) => setField('productComponent', event.target.value)}
+          readOnly={values.crisisType === 'Shipment Disruption' && Boolean(values.shipmentId)}
           required
         />
       </FormField>

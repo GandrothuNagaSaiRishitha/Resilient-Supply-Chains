@@ -26,7 +26,7 @@ export default function DecisionReplay() {
       <IncidentSelector
         incidents={replay.incidents}
         value={replay.incidentId}
-        disabled={replay.loading}
+        disabled={replay.loading || replay.replaying}
         onChange={replay.selectIncident}
       />
 
@@ -39,7 +39,7 @@ export default function DecisionReplay() {
         <div role="alert" className="flex flex-col items-center rounded-2xl border border-rose-200 bg-white p-8 text-center">
           <AlertCircle size={26} className="text-rose-500" />
           <h2 className="mt-3 text-sm font-semibold text-slate-900">Decision replay unavailable</h2>
-          <p className="mt-2 text-xs text-slate-500">{isMockMode ? 'Illustrative demo data could not be loaded or replayed.' : 'Decision replay data could not be loaded from the backend.'}</p>
+          <p className="mt-2 text-xs text-slate-500">{isMockMode ? 'Illustrative demo data could not be loaded or replayed.' : 'Decision replay data could not be loaded or refreshed. Please try again.'}</p>
           <button type="button" onClick={replay.retry} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700"><RotateCcw size={14} />Try again</button>
         </div>
       ) : replay.record ? (
@@ -65,7 +65,7 @@ export default function DecisionReplay() {
           <ReplayExplanation record={replay.record} />
         </>
       ) : (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">No incident is available for replay.</div>
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">{isMockMode ? 'No demo incident is available for replay.' : 'No incident is available for replay.'}</div>
       )}
     </div>
   )

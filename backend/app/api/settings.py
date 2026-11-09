@@ -32,13 +32,15 @@ def health(db: Session = Depends(get_db)) -> dict:
     hindsight_ok = False
     hindsight_version = None
     hindsight_error = None
+    client = memory_service._client()
     try:
-        client = memory_service._client()
         enclosed = client.get_version()
         hindsight_version = str(enclosed)[:200]
         hindsight_ok = True
     except Exception as exc:  # noqa: BLE001
         hindsight_error = str(exc)
+    finally:
+        memory_service._close_client(client)
 
     return {
         "status": "ok" if database_ok and hindsight_ok else "degraded",

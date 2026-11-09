@@ -16,7 +16,7 @@ export default function MemoryDetailDialog({
   open: boolean
   memory: HistoricalIncidentMemory | null
   loading: boolean
-  error: boolean
+  error: string | null
   onClose: () => void
 }) {
   if (!open) return null
@@ -36,7 +36,7 @@ export default function MemoryDetailDialog({
         </div>
         <div className="p-5 sm:p-6">
           {loading && <div className="space-y-3"><div className="h-5 animate-pulse rounded bg-slate-100" /><div className="h-16 animate-pulse rounded bg-slate-100" /><div className="h-16 animate-pulse rounded bg-slate-100" /></div>}
-          {error && <p role="alert" className="text-sm text-rose-700">Could not load the illustrative memory detail.</p>}
+          {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
           {memory && (
             <>
               <div className="mb-5 flex flex-wrap gap-2">

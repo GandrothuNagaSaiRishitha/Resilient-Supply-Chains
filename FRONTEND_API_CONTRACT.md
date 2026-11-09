@@ -29,7 +29,7 @@ from `{ message?, detail?, error?, code?, requestId?, details? }`.
 | Feature | Method and exact path | Request | Expected successful response |
 |---|---|---|---|
 | Dashboard | `GET /api/v1/dashboard` | None | Raw `DashboardApiResponse` (not wrapped in `{ data }`) |
-| Crisis Reporter: form options | `GET /api/crises/form-options` | None | `ApiResponse<CrisisReportFormOptions>` |
+| Crisis Reporter: form options | `GET /api/crises/form-options` | None | `ApiResponse<CrisisReportFormOptions>` including suppliers and open orders scoped to the authenticated organization |
 | Crisis Reporter: submit | `POST /api/crises` | `CrisisReportRequest` | `ApiResponse<CrisisReportResponse>` |
 | Impact Analysis: incidents | `GET /api/impacts/incidents` | None | `ApiResponse<ImpactIncidentOption[]>` |
 | Impact Analysis: selected incident | `GET /api/impacts/incidents/{incidentId}` | None; URL-encoded `incidentId` | `ApiResponse<ImpactAnalysis>` |
@@ -115,6 +115,14 @@ export interface ApiErrorPayload {
 export interface CrisisReportFormOptions {
   crisisTypes: CrisisType[]
   suppliers: Array<{ id: string; name: string }>
+  orders: Array<{
+    id: string
+    orderNumber: string
+    supplierId: string
+    product: string
+    status: string
+    destination: string | null
+  }>
   urgencies: BusinessUrgency[]
 }
 export interface CrisisReportRequest {
@@ -263,6 +271,18 @@ export interface HistoricalEvidence {
   outcome: string
   lessonLearned: string
   demoRecord?: boolean
+  verified?: boolean | null
+}
+export interface AIRecommendation {
+  status: 'generated' | 'fallback'
+  strategyKey: RecoveryStrategyKey
+  rationale: string
+  estimatedImpact: string
+  risks: string[]
+  tradeOffs: string[]
+  evidenceStrength: 'none' | 'limited' | 'moderate' | 'strong'
+  evidenceIds: string[]
+  notice?: string | null
 }
 export interface AlternativeStrategyContext {
   strategyKey: RecoveryStrategyKey
@@ -284,6 +304,9 @@ export interface DecisionReport {
   executionConditions: string[]
   alternatives: AlternativeStrategyContext[]
   historicalEvidence: HistoricalEvidence[]
+  aiRecommendation?: AIRecommendation
+  memoryStatus?: 'available' | 'empty' | 'unavailable'
+  reflectionStatus?: 'used' | 'empty' | 'unavailable' | 'not_needed'
   memoryComparison: MemoryComparison
   demoDataNotice?: string
 }

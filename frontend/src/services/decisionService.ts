@@ -15,6 +15,7 @@ import type {
 } from '../types/decision'
 
 const demoOutcomeRecords: OutcomeFeedbackRequest[] = []
+const pendingDecisionReports = new Map<string, Promise<DecisionReportResponse>>()
 
 export async function getDecisionIncidents(): Promise<DecisionIncidentsResponse> {
   if (isMockMode) return { data: simulationIncidents }
@@ -26,8 +27,14 @@ export async function getDecisionReport(
   incidentId: string,
 ): Promise<DecisionReportResponse> {
   if (!isMockMode) {
-    const { data } = await api.get<ApiResponse<DecisionReportResponse['data']>>(apiEndpoints.decisionReport(incidentId))
-    return data
+    const pending = pendingDecisionReports.get(incidentId)
+    if (pending) return pending
+    const request = api
+      .get<ApiResponse<DecisionReportResponse['data']>>(apiEndpoints.decisionReport(incidentId))
+      .then(({ data }) => data)
+      .finally(() => pendingDecisionReports.delete(incidentId))
+    pendingDecisionReports.set(incidentId, request)
+    return request
   }
   const scenario = simulationScenarios[incidentId]
   const decisionContext = decisionMockData[incidentId]

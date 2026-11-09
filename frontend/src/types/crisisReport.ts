@@ -8,6 +8,14 @@ export type BusinessUrgency = 'Low' | 'Medium' | 'High' | 'Critical'
 export interface CrisisReportFormOptions {
   crisisTypes: CrisisType[]
   suppliers: Array<{ id: string; name: string }>
+  orders: Array<{
+    id: string
+    orderNumber: string
+    supplierId: string
+    product: string
+    status: string
+    destination: string | null
+  }>
   urgencies: BusinessUrgency[]
 }
 

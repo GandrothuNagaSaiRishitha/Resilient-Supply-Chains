@@ -20,12 +20,12 @@ function LoadingState() {
   )
 }
 
-function ErrorState({ onRetry }: { onRetry: () => void }) {
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-rose-200 bg-white p-8 text-center">
       <AlertCircle className="mb-3 text-rose-500" size={28} />
       <h2 className="font-semibold text-slate-900">Memory Centre unavailable</h2>
-      <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">Illustrative memory data could not be loaded. Please try again.</p>
+      <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">{message}</p>
       <button type="button" onClick={onRetry} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">
         <RotateCcw size={15} />Try again
       </button>
@@ -36,8 +36,8 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 export default function MemoryCentrePage() {
   const memory = useMemoryCentre()
   if (memory.loading) return <LoadingState />
-  if (memory.error && !memory.data) return <ErrorState onRetry={memory.retry} />
-  if (!memory.data) return <ErrorState onRetry={memory.retry} />
+  if (memory.error && !memory.data) return <ErrorState message={memory.error} onRetry={memory.retry} />
+  if (!memory.data) return <ErrorState message={isMockMode ? 'Illustrative memory data could not be loaded. Please try again.' : 'Memory data could not be loaded. Please try again.'} onRetry={memory.retry} />
 
   return (
     <section className="mx-auto max-w-[1440px]">
@@ -62,7 +62,7 @@ export default function MemoryCentrePage() {
       />
       {memory.error && (
         <div role="alert" className="mb-5 flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
-          <AlertCircle size={15} />Could not update the memory results. Please try another filter.
+          <AlertCircle size={15} />{memory.error}
         </div>
       )}
       <div className="mb-5 grid gap-5 xl:grid-cols-2">

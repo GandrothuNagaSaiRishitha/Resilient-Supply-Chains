@@ -14,6 +14,9 @@ export default function AlternativeStrategies({
   selectedKey: RecoveryStrategyKey | null
   onSelect: (key: RecoveryStrategyKey) => void
 }) {
+  const recommendedKey = report.aiRecommendation?.status === 'generated'
+    ? report.aiRecommendation.strategyKey
+    : report.scenario.recommendedStrategyKey
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40">
       <SectionHeader icon={<ArrowDownRight size={18} />} title="Alternative strategies" description="Select an alternative to record a different choice and review its modeled trade-offs." tag={isMockMode ? 'Illustrative estimates' : 'API estimates'} />
@@ -23,7 +26,7 @@ export default function AlternativeStrategies({
             key={alternative.strategyKey}
             alternative={alternative}
             report={report}
-            selected={selectedKey === alternative.strategyKey && selectedKey !== report.scenario.recommendedStrategyKey}
+            selected={selectedKey === alternative.strategyKey && selectedKey !== recommendedKey}
             onSelect={onSelect}
           />
         ))}
